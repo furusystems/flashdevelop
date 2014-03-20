@@ -1882,8 +1882,15 @@ namespace ASCompletion.Completion
 				{
                     mix.Merge(tmpClass.GetSortedMembersList(), mask, acc);
 
-                    if ((mask & FlagType.Static) > 0 // only show direct static inheritance
-                        && (!features.hasStaticInheritance || dotIndex > 0)) break; 
+                    // static inheritance
+                    if ((mask & FlagType.Static) > 0)
+                    {
+                        if ((!features.hasStaticInheritance || dotIndex > 0) && (tmpClass.Flags & FlagType.TypeDef) == 0)
+                            break;
+                    }
+
+                    //if ((mask & FlagType.Static) > 0 // only show direct static inheritance
+                    //    && (!features.hasStaticInheritance || dotIndex > 0)) break; 
 
                     tmpClass = tmpClass.Extends;
                     // hide Object class members
@@ -2892,6 +2899,7 @@ namespace ASCompletion.Completion
                 return;
 
             IASContext context = ASContext.Context;
+            ContextFeatures features = context.Features;
 			MemberModel found = null;
 			ClassModel tmpClass = inClass;
 
@@ -3008,7 +3016,14 @@ namespace ASCompletion.Completion
                             return;
                         }
                     }
-                    if ((mask & FlagType.Static) > 0 && tmpClass.InFile.Version != 2) break; // only AS2 inherit static members
+
+                    // static inheritance: only AS2 and Haxe typedefs inherit static members
+                    if ((mask & FlagType.Static) > 0)
+                    {
+                        if (!features.hasStaticInheritance && (tmpClass.Flags & FlagType.TypeDef) == 0)
+                            break; 
+                    }
+
                     tmpClass = tmpClass.Extends;
 
                     if (acc == 0 && !tmpClass.IsVoid() && tmpClass.InFile.Version == 3)
