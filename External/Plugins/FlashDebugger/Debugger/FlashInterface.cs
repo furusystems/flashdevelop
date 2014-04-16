@@ -793,6 +793,11 @@ namespace FlashDebugger
                     sb.Append(TextHelper.GetString("Info.InformationAboutFault")); //$NON-NLS-1$
 					sb.Append(e.information);
 				}
+                if (PluginMain.settingObject.VerboseOutput)
+                {
+                    sb.AppendLine();
+                    sb.Append(e.stackTrace());
+                }
 			}
 
             if (e.isolateId == 1)
