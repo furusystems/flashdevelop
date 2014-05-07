@@ -1473,9 +1473,10 @@ namespace ASCompletion.Completion
             MemberList members = inClass.Members;
             foreach (MemberModel m in members)
             {
-                if (m.Name == funcResult.Member.Name)
+                if (m.Equals(funcResult.Member))
                 {
                     funcResult.Member = m;
+                    break;
                 }
             }
 
