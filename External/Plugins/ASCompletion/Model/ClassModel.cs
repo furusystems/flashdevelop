@@ -224,6 +224,27 @@ namespace ASCompletion.Model
             return items;
         }
 
+        /// <summary>
+        /// Returns all members inherited from super classes of this class.
+        /// Does not take static inheritance into account.
+        /// </summary>
+        internal MemberList GetSortedInheritedMembersList()
+        {
+            MemberList items = new MemberList();
+            ClassModel curClass = this;
+            do
+            {
+                curClass.ResolveExtends();
+                curClass = curClass.Extends;
+                MemberList newMembers = curClass.GetSortedMembersList();
+                items.Merge(newMembers);
+                
+            } while (curClass.Extends != ClassModel.VoidClass);
+            items.RemoveAllWithFlag(FlagType.Static);
+            items.Sort();
+            return items;
+        }
+
         #endregion
 
         #region Sorting
@@ -304,9 +325,10 @@ namespace ASCompletion.Model
 
             // MEMBERS
             int count = 0;
-            foreach (MemberModel var in Members)
+            foreach (MemberModel var in Members) 
                 if ((var.Flags & FlagType.Variable) > 0)
                 {
+                    ASMetaData.GenerateIntrinsic(var.MetaDatas, sb, nl, tab);
                     String comment = CommentDeclaration(var.Comments, tab);
                     if (count == 0 || comment != "") sb.Append(nl);
                     sb.Append(comment);
@@ -323,6 +345,7 @@ namespace ASCompletion.Model
                 {
                     if (prevProperty != property.Name) sb.Append(nl);
                     prevProperty = property.Name;
+                    ASMetaData.GenerateIntrinsic(property.MetaDatas, sb, nl, tab);
                     sb.Append(CommentDeclaration(property.Comments, tab));
                     FlagType flags = (property.Flags & ~(FlagType.Setter | FlagType.Getter)) | FlagType.Function;
 
@@ -365,6 +388,7 @@ namespace ASCompletion.Model
                     decl = MemberDeclaration(method, preventVis);
                     if (InFile.haXe && (method.Flags & FlagType.Constructor) > 0)
                         decl = decl.Replace("function " + method.Name, "function new");
+                    ASMetaData.GenerateIntrinsic(method.MetaDatas, sb, nl, tab);
                     sb.Append(nl).Append(CommentDeclaration(method.Comments, tab));
                     sb.Append(tab).Append(decl).Append(semi).Append(nl);
                 }

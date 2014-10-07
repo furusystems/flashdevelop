@@ -167,7 +167,7 @@ namespace CodeRefactor
                             newPath = args[1];
                             if (IsValidForMove(oldPath, newPath))
                             {
-                                MovingHelper.AddToQueue(new Dictionary<string, string> { { oldPath, newPath } });
+                                MovingHelper.AddToQueue(new Dictionary<string, string> { { oldPath, newPath } }, true);
                                 e.Handled = true;
                             }
                             break;
@@ -311,9 +311,13 @@ namespace CodeRefactor
                 ASResult result = isValid ? resolved.Result : null;
                 if (result != null && !result.IsNull())
                 {
+                    bool isRenameable = (result.Member != null && result.Member.InFile != null && File.Exists(result.Member.InFile.FileName))
+                        || (result.Type != null && result.Type.InFile != null && File.Exists(result.Type.InFile.FileName))
+                        || (result.InFile != null && File.Exists(result.InFile.FileName))
+                        || result.IsPackage;
+                    this.refactorContextMenu.RenameMenuItem.Enabled = isRenameable;
+                    this.refactorMainMenu.RenameMenuItem.Enabled = isRenameable;
                     bool isNotPackage = !result.IsPackage;
-                    this.refactorContextMenu.RenameMenuItem.Enabled = true;
-                    this.refactorMainMenu.RenameMenuItem.Enabled = true;
                     this.editorReferencesItem.Enabled = isNotPackage;
                     this.viewReferencesItem.Enabled = isNotPackage;
                     if (result.Member != null && result.Type != null && result.InClass != null && result.InFile != null)

@@ -266,9 +266,7 @@ namespace ProjectManager
             pluginUI.Menu.AddLibraryAsset.Click += delegate { TreeAddAsset(); };
             pluginUI.Menu.AddExistingFile.Click += delegate { TreeAddExistingFile(); };
             pluginUI.Menu.TestMovie.Click += delegate { TestMovie(); };
-            pluginUI.Menu.BuildProject.Click += delegate { 
-                BuildProject(); 
-            };
+            pluginUI.Menu.BuildProject.Click += delegate { BuildProject(); };
             pluginUI.Menu.CloseProject.Click += delegate { CloseProject(false); };
             pluginUI.Menu.Properties.Click += delegate { OpenProjectProperties(); };
             pluginUI.Menu.ShellMenu.Click += delegate { TreeShowShellMenu(); };
@@ -540,6 +538,20 @@ namespace ProjectManager
         private bool HandleKeyEvent(KeyEvent ke)
         {
             if (activeProject == null) return false;
+
+            if (ke.Value == PluginBase.MainForm.GetShortcutItemKeys("ProjectMenu.ConfigurationSelector"))
+            {
+                pluginUI.menus.ConfigurationSelector.Focus();
+            }
+            else if (ke.Value == PluginBase.MainForm.GetShortcutItemKeys("ProjectMenu.ConfigurationSelectorToggle"))
+            {
+                pluginUI.menus.ToggleDebugRelease();
+            }
+            else if (ke.Value == PluginBase.MainForm.GetShortcutItemKeys("ProjectMenu.TargetBuildSelector"))
+            {
+                pluginUI.menus.TargetBuildSelector.Focus();
+            }
+
             // Handle tree-level simple shortcuts like copy/paste/del
             else if (Tree.Focused && !pluginUI.IsEditingLabel && ke != null)
             {
@@ -587,7 +599,7 @@ namespace ProjectManager
 
         void SetProject(Project project, Boolean stealFocus, Boolean internalOpening)
         {
-            if (Tree.Projects.Contains(project)) return;
+            if (project == null || Tree.Projects.Contains(project)) return;
             if (activeProject != null) CloseProject(true);
 
             // configure
@@ -862,15 +874,16 @@ namespace ProjectManager
             }
             else if (project.TestMovieBehavior == TestMovieBehavior.Custom)
             {
-                if (project.TraceEnabled && project.EnableInteractiveDebugger)
-                {
-                    de = new DataEvent(EventType.Command, "AS3Context.StartProfiler", null);
-                    EventManager.DispatchEvent(this, de);
-                    de = new DataEvent(EventType.Command, "AS3Context.StartDebugger", null);
-                    EventManager.DispatchEvent(this, de);
-                }
                 if (project.TestMovieCommand != null && project.TestMovieCommand.Length > 0)
                 {
+                    if (project.TraceEnabled && project.EnableInteractiveDebugger)
+                    {
+                        de = new DataEvent(EventType.Command, "AS3Context.StartProfiler", null);
+                        EventManager.DispatchEvent(this, de);
+                        de = new DataEvent(EventType.Command, "AS3Context.StartDebugger", null);
+                        EventManager.DispatchEvent(this, de);
+                    }
+
                     string cmd = MainForm.ProcessArgString(project.TestMovieCommand).Trim();
                     cmd = project.FixDebugReleasePath(cmd);
 
@@ -912,7 +925,7 @@ namespace ProjectManager
 
         private void BuildComplete(IProject project, bool runOutput)
         {
-            BroadcastBuildComplete(project);
+            if (project != null) BroadcastBuildComplete(project);
             if (buildQueue.Count > 0) ProcessBuildQueue();
             else if (this.buildingAll)
             {
@@ -1320,10 +1333,16 @@ namespace ProjectManager
         /// </summary>
         private void TreeShowCommandPrompt()
         {
-            ProcessStartInfo cmdPrompt = new ProcessStartInfo();
-            cmdPrompt.FileName = "cmd.exe";
-            cmdPrompt.WorkingDirectory = Tree.SelectedPath;
-            Process.Start(cmdPrompt);
+            var de = new DataEvent(EventType.Command, "FileExplorer.PromptHere", Tree.SelectedPath);
+            EventManager.DispatchEvent(this, de);
+
+            if (!de.Handled)
+            {
+                ProcessStartInfo cmdPrompt = new ProcessStartInfo();
+                cmdPrompt.FileName = "cmd.exe";
+                cmdPrompt.WorkingDirectory = Tree.SelectedPath;
+                Process.Start(cmdPrompt);
+            }
         }
 
         /// <summary>
@@ -1392,13 +1411,24 @@ namespace ProjectManager
             buildTimer.Stop();
             if (buildTimer.Tag == null)
             {
-                Project project = ProjectLoader.Load(buildQueue.Dequeue());
-                Boolean debugging = this.buildingAll ? !activeProject.TraceEnabled : !project.TraceEnabled;
-                this.buildActions.Build(project, false, debugging);
+                try
+                {
+                    Project project = ProjectLoader.Load(buildQueue.Dequeue());
+                    if (project != null)
+                    {
+                        Boolean debugging = this.buildingAll ? !activeProject.TraceEnabled : !project.TraceEnabled;
+                        this.buildActions.Build(project, false, debugging);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    TraceManager.AddAsync(ex.Message);
+                    BuildComplete(null, false);
+                }
             } 
             else
             {
-                this.buildTimer.Tag = null;
+                buildTimer.Tag = null;
                 if (this.runOutput) this.TestMovie();
                 else this.BuildProject();
                 this.runOutput = false;

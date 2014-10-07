@@ -718,6 +718,16 @@ namespace FlashDevelop
                 this.amWatcher.EnableRaisingEvents = true;
             }
             catch {} // No errors...
+
+            // Load platforms data
+            try
+            {
+                PlatformData.Load(Path.Combine(PathHelper.SettingDir, "Platforms"));
+            }
+            catch (Exception ex)
+            {
+                ErrorManager.ShowError("Invalid 'Platforms' in Settings", ex);
+            }
         }
 
         /// <summary>
@@ -828,7 +838,7 @@ namespace FlashDevelop
             try
             {
                 Point position = this.appSettings.WindowPosition;
-                if (position.X < -4 || position.Y < -4) this.Location = new Point(0, 0);
+                if (position.X < -4 || position.Y < -12) this.Location = new Point(0, 0);
                 else this.Location = position; // Set zero position if window is hidden
                 String pluginDir = PathHelper.PluginDir; // Plugins of all users
                 if (Directory.Exists(pluginDir)) PluginServices.FindPlugins(pluginDir);

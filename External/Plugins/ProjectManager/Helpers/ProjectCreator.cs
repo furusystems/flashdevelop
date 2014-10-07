@@ -86,7 +86,15 @@ namespace ProjectManager.Helpers
                 projectPath = PathHelper.GetPhysicalPathName(projectPath);
                 de = new DataEvent(EventType.Command, ProjectManagerEvents.ProjectCreated, para);
                 EventManager.DispatchEvent(this, de);
-                return ProjectLoader.Load(projectPath);
+                try
+                {
+                    return ProjectLoader.Load(projectPath);
+                }
+                catch (Exception ex)
+                {
+                    TraceManager.Add(ex.Message);
+                    return null;
+                }
             }
             else return null;
 		}
@@ -159,6 +167,7 @@ namespace ProjectManager.Helpers
         private string ReplaceKeywords(string line)
 		{
             if (line.IndexOf("$") < 0) return line;
+            if (packageName == "") line = line.Replace(" $(PackageName)", "");
             return line = reArgs.Replace(line, new MatchEvaluator(ReplaceVars));
         }
 
