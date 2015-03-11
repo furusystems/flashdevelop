@@ -5,6 +5,7 @@ using System.Text;
 using System.IO;
 using ASCompletion.Context;
 using System.Text.RegularExpressions;
+using PluginCore.Helpers;
 
 namespace ASCompletion.Model
 {
@@ -54,7 +55,7 @@ namespace ASCompletion.Model
                 if (mParams.Count > 0)
                 {
                     for (int i = 0, c = mParams.Count; i < c; i++)
-                        Params.Add(mParams[i].Groups[1].Value, mParams[i].Groups[2].Value);
+                        Params[mParams[i].Groups[1].Value] = mParams[i].Groups[2].Value;
                 }
                 else if (Kind == ASMetaKind.Event || Kind == ASMetaKind.Style) // invalid Event
                     Kind = ASMetaKind.Unknown;
@@ -155,7 +156,7 @@ namespace ASCompletion.Model
             Package = "";
             Module = "";
             FileName = fileName ?? "";
-            haXe = (fileName.Length > 3) ? fileName.EndsWith(".hx") : false;
+            haXe = (FileName.Length > 3) ? FileHelper.IsHaxeExtension(Path.GetExtension(FileName)) : false;
             //
             Namespaces = new Dictionary<string, Visibility>();
             //

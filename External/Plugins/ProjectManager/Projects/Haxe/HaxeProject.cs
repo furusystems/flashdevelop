@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using System.Text.RegularExpressions;
 using ProjectManager.Projects.AS3;
 using PluginCore;
+using PluginCore.Helpers;
 
 namespace ProjectManager.Projects.Haxe
 {
@@ -26,7 +27,7 @@ namespace ProjectManager.Projects.Haxe
         public override bool ReadOnly { get { return false; } }
         public override bool HasLibraries { get { return OutputType == OutputType.Application && IsFlashOutput; } }
         public override bool RequireLibrary { get { return IsFlashOutput; } }
-        public override string DefaultSearchFilter { get { return "*.hx"; } }
+        public override string DefaultSearchFilter { get { return "*.hx;*.hxp"; } }
 
         public override String LibrarySWFPath
         {
@@ -72,7 +73,7 @@ namespace ProjectManager.Projects.Haxe
 
         public override CompileTargetType AllowCompileTarget(string path, bool isDirectory)
         {
-            if (isDirectory || Path.GetExtension(path) != ".hx") return CompileTargetType.None;
+            if (isDirectory || !FileHelper.IsHaxeExtension(Path.GetExtension(path))) return CompileTargetType.None;
 
             foreach (string cp in AbsoluteClasspaths)
                 if (path.StartsWith(cp, StringComparison.OrdinalIgnoreCase))

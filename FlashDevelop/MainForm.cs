@@ -580,7 +580,7 @@ namespace FlashDevelop
             {
                 if (this.Documents.Length == 0)
                 {
-                    this.New(null, null);
+                    this.SmartNew(null, null);
                     return null;
                 }
                 else return null;
@@ -1086,7 +1086,7 @@ namespace FlashDevelop
             {
                 NotifyEvent ne = new NotifyEvent(EventType.FileEmpty);
                 EventManager.DispatchEvent(this, ne);
-                if (!ne.Handled) this.New(null, null);
+                if (!ne.Handled) this.SmartNew(null, null);
             }
             /**
             * Load and apply current active theme
@@ -1144,7 +1144,7 @@ namespace FlashDevelop
             {
                 NotifyEvent fe = new NotifyEvent(EventType.FileEmpty);
                 EventManager.DispatchEvent(this, fe);
-                if (!fe.Handled) this.New(null, null);
+                if (!fe.Handled) this.SmartNew(null, null);
             }
             if (!e.Cancel)
             {
@@ -1153,6 +1153,7 @@ namespace FlashDevelop
                 ShortcutManager.SaveCustomShortcuts();
                 ArgumentDialog.SaveCustomArguments();
                 PluginServices.DisposePlugins();
+                this.KillProcess();
                 this.SaveAllSettings();
                 /* Restart if requested */
                 if (this.restartRequested)
@@ -1317,7 +1318,7 @@ namespace FlashDevelop
             {
                 NotifyEvent ne = new NotifyEvent(EventType.FileEmpty);
                 EventManager.DispatchEvent(this, ne);
-                if (!ne.Handled) this.New(null, null);
+                if (!ne.Handled) this.SmartNew(null, null);
             }
         }
 
@@ -2978,6 +2979,7 @@ namespace FlashDevelop
         {
             Globals.SciControl.MarkerDeleteAll(0);
             UITools.Manager.MarkerChanged(Globals.SciControl, -1);
+            ButtonManager.UpdateFlaggedButtons();
         }
 
         /// <summary>
@@ -3814,6 +3816,14 @@ namespace FlashDevelop
         /// </summary>
         public void KillProcess(Object sender, System.EventArgs e)
         {
+            KillProcess();
+        }
+
+        /// <summary>
+        /// Stop the currently running process
+        /// </summary>
+        public void KillProcess()
+        {
             if (this.processRunner.IsRunning)
             {
                 this.processRunner.KillProcess();
@@ -3868,6 +3878,8 @@ namespace FlashDevelop
             {
                 Host host = new Host();
                 String[] args = file.Split(new Char[1]{';'});
+                if (args.Length == 1 || String.IsNullOrEmpty(args[1]))
+                    return; // no file selected / the open file dialog was cancelled
                 if (args[0] == "Internal") host.ExecuteScriptInternal(args[1], false);
                 else if (args[0] == "Development") host.ExecuteScriptInternal(args[1], true);
                 else host.ExecuteScriptExternal(file);

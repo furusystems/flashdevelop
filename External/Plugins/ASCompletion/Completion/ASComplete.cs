@@ -152,8 +152,11 @@ namespace ASCompletion.Completion
                                 return HandleFunctionCompletion(Sci, autoHide);
                             break;
                         }
-                        if (word == "class" || word == "package" || word == "interface") 
+                        if (word == "package" || Array.IndexOf(features.typesKeywords, word) >= 0) 
                             return false;
+                        // override
+                        if (word == features.overrideKey)
+                            return ASGenerator.HandleGeneratorCompletion(Sci, autoHide, word);
                         // new/extends/instanceof/...
                         if (features.HasTypePreKey(word))
 							return HandleNewCompletion(Sci, "", autoHide, word);
@@ -161,13 +164,8 @@ namespace ASCompletion.Completion
                         if (features.hasImports && (word == features.importKey || word == features.importKeyAlt))
 							return HandleImportCompletion(Sci, "", autoHide);
                         // public/internal/private/protected/static
-                        if (word == features.publicKey || word == features.internalKey
-                            || word == features.protectedKey || word == features.privateKey
-                            || word == features.staticKey || word == features.inlineKey)
+                        if (Array.IndexOf(features.accessKeywords, word) >= 0)
                             return HandleDeclarationCompletion(Sci, "", autoHide);
-                        // override
-                        if (word == features.overrideKey)
-                            return ASGenerator.HandleGeneratorCompletion(Sci, autoHide, word);
 						break;
 
 					case ':':
@@ -1211,8 +1209,10 @@ namespace ASCompletion.Completion
             if (Sci.CharAt(position - 1) <= 32) tail = "";
 
             // completion support
-            ContextFeatures features = ASContext.Context.Features;
-            List<string> support = features.GetDeclarationKeywords(Sci.GetLine(line));
+            IASContext ctx = ASContext.Context;
+            ContextFeatures features = ctx.Features;
+            bool insideClass = !ctx.CurrentClass.IsVoid() && ctx.CurrentClass.LineFrom < line;
+            List<string> support = features.GetDeclarationKeywords(Sci.GetLine(line), insideClass);
             if (support.Count == 0) return true;
             
             // current model
@@ -1224,12 +1224,16 @@ namespace ASCompletion.Completion
             int tempLine = line-1;
             int tempIndent;
             string tempText;
-            while(tempLine > 0)
+            while (tempLine > 0)
             {
                 tempText = Sci.GetLine(tempLine).Trim();
-                if (tempText.IndexOf("class") >= 0 || tempText.IndexOf("interface") >=0 || tempText.IndexOf("enum") >= 0) 
+                if (insideClass && IsTypeDecl(tempText, features.typesKeywords))
+                {
+                    tempIndent = Sci.GetLineIndentation(tempLine);
+                    tab = tempIndent + Sci.TabWidth;
                     break;
-                if (tempText.Length > 0 && (tempText.EndsWith("}") || IsDeclaration(tempText)))
+                }
+                if (tempText.Length > 0 && (tempText.EndsWith("}") || IsDeclaration(tempText, features)))
                 {
                     tempIndent = Sci.GetLineIndentation(tempLine);
                     tab = tempIndent;
@@ -1254,20 +1258,19 @@ namespace ASCompletion.Completion
 			return true;
 		}
 
-        private static bool IsDeclaration(string line)
+        private static bool IsTypeDecl(string line, string[] typesKeywords)
         {
-            ContextFeatures features = ASContext.Context.Features;
-            if (!string.IsNullOrEmpty(features.privateKey) && line.StartsWith(features.privateKey)) return true;
-            if (!string.IsNullOrEmpty(features.protectedKey) && line.StartsWith(features.protectedKey)) return true;
-            if (!string.IsNullOrEmpty(features.internalKey) && line.StartsWith(features.internalKey)) return true;
-            if (!string.IsNullOrEmpty(features.publicKey) && line.StartsWith(features.publicKey)) return true;
-            if (!string.IsNullOrEmpty(features.varKey) && line.StartsWith(features.varKey)) return true;
-            if (!string.IsNullOrEmpty(features.constKey) && line.StartsWith(features.constKey)) return true;
-            if (!string.IsNullOrEmpty(features.overrideKey) && line.StartsWith(features.overrideKey)) return true;
-            if (!string.IsNullOrEmpty(features.inlineKey) && line.StartsWith(features.inlineKey)) return true;
-            if (!string.IsNullOrEmpty(features.functionKey) && line.StartsWith(features.functionKey)) return true;
-            if (!string.IsNullOrEmpty(features.staticKey) && line.StartsWith(features.staticKey)) return true;
-            if (!string.IsNullOrEmpty(features.finalKey) && line.StartsWith(features.finalKey)) return true;
+            foreach (string keyword in typesKeywords)
+                if (line.IndexOf(keyword) >= 0) return true;
+            return false;
+        }
+
+        private static bool IsDeclaration(string line, ContextFeatures features)
+        {
+            foreach (string keyword in features.accessKeywords)
+                if (line.StartsWith(keyword)) return true;
+            foreach (string keyword in features.declKeywords)
+                if (line.StartsWith(keyword)) return true;
             return false;
         }
 
@@ -1764,9 +1767,7 @@ namespace ASCompletion.Completion
 
 			// complete keyword
             string word = expr.WordBefore;
-            if (word != null &&
-                (word == features.varKey || word == features.functionKey || word == features.constKey
-                || word == features.getKey || word == features.setKey))
+            if (word != null && Array.IndexOf(features.declKeywords, word) >= 0)
                 return false;
             ClassModel argumentType = null;
             if (dotIndex < 0)
@@ -1940,17 +1941,18 @@ namespace ASCompletion.Completion
                 mix.Merge(cFile.GetSortedMembersList());
                 mix.Merge(ctx.GetTopLevelElements());
                 mix.Merge(ctx.GetVisibleExternalElements());
-                MemberList decl = new MemberList();
-                foreach (string key in features.codeKeywords)
-                    decl.Add(new MemberModel(key, key, FlagType.Template, 0));
-                decl.Sort();
-                mix.Merge(decl);
+                mix.Merge(GetKeywords());
             }
 
 			// show
             List<ICompletionListItem> list = new List<ICompletionListItem>();
-			foreach(MemberModel member in mix)
-                list.Add(new MemberItem(member));
+            foreach (MemberModel member in mix)
+            {
+                if ((member.Flags & FlagType.Template) > 0)
+                    list.Add(new TemplateItem(member));
+                else
+                    list.Add(new MemberItem(member));
+            }
 			CompletionList.Show(list, autoHide, tail);
 
             // smart focus token
@@ -1960,6 +1962,30 @@ namespace ASCompletion.Completion
             if (outOfDate) ctx.SetOutOfDate();
 			return true;
 		}
+
+        private static MemberList GetKeywords()
+        {
+            IASContext ctx = ASContext.Context;
+            ContextFeatures features = ctx.Features;
+            ClassModel cClass = ctx.CurrentClass;
+            bool inClass = !cClass.IsVoid();
+
+            MemberList decl = new MemberList();
+            if (inClass || !ctx.CurrentModel.haXe)
+            {
+                foreach (string key in features.codeKeywords)
+                    decl.Add(new MemberModel(key, key, FlagType.Template, 0));
+            }
+            if (!inClass)
+            {
+                foreach (string key in features.accessKeywords)
+                    decl.Add(new MemberModel(key, key, FlagType.Template, 0));
+                foreach (string key in features.typesKeywords)
+                    decl.Add(new MemberModel(key, key, FlagType.Template, 0));
+            }
+            decl.Sort();
+            return decl;
+        }
 
         private static bool DeclarationSectionOnly()
         {
@@ -2310,16 +2336,34 @@ namespace ASCompletion.Completion
         }
 
         #region expression_evaluator
+
         /// <summary>
-		/// Find expression type in function context
-		/// </summary>
-		/// <param name="expression">To evaluate</param>
+        /// Find expression type in function context
+        /// </summary>
+        /// <param name="expression">To evaluate</param>
         /// <param name="context">Completion context</param>
         /// <param name="inFile">File context</param>
-		/// <param name="inClass">Class context</param>
-		/// <param name="complete">Complete (sub-expression) or partial (dot-completion) evaluation</param>
-		/// <returns>Class/member struct</returns>
-        static private ASResult EvalExpression(string expression, ASExpr context, FileModel inFile, ClassModel inClass, bool complete, bool asFunction, bool filterVisibility = true)
+        /// <param name="inClass">Class context</param>
+        /// <param name="complete">Complete (sub-expression) or partial (dot-completion) evaluation</param>
+        /// <param name="asFunction"></param>
+        /// <returns>Class/member struct</returns>
+        static private ASResult EvalExpression(string expression, ASExpr context, FileModel inFile, ClassModel inClass, bool complete, bool asFunction)
+        {
+            return EvalExpression(expression, context, inFile, inClass, complete, asFunction, true);
+        }
+
+        /// <summary>
+        /// Find expression type in function context
+        /// </summary>
+        /// <param name="expression">To evaluate</param>
+        /// <param name="context">Completion context</param>
+        /// <param name="inFile">File context</param>
+        /// <param name="inClass">Class context</param>
+        /// <param name="complete">Complete (sub-expression) or partial (dot-completion) evaluation</param>
+        /// <param name="asFunction"></param>
+        /// <param name="filterVisibility"></param>
+        /// <returns>Class/member struct</returns>
+        static private ASResult EvalExpression(string expression, ASExpr context, FileModel inFile, ClassModel inClass, bool complete, bool asFunction, bool filterVisibility)
 		{
 			ASResult notFound = new ASResult();
             notFound.Context = context;
@@ -2392,7 +2436,8 @@ namespace ASCompletion.Completion
 			if (head.IsNull()) return notFound;
 
             // accessing instance member in static function, exit
-            if (IsStatic(context.ContextFunction) && head.RelClass == inClass
+            if (IsStatic(context.ContextFunction) && context.WordBefore != features.overrideKey
+                && head.RelClass == inClass
                 && head.Member != null && !IsStatic(head.Member)
                 && (head.Member.Flags & FlagType.Constructor) == 0)
                 return notFound;
@@ -2570,7 +2615,8 @@ namespace ASCompletion.Completion
                     result.Type = ResolveType("Function", null);
                 return result;
             }
-
+            if (context.CurrentModel.haXe && !inClass.IsVoid() && token == "new" && local.BeforeBody)
+                return EvalVariable(inClass.Name, local, inFile, inClass);
             // local vars
             if (local.LocalVars != null)
             {
@@ -2602,7 +2648,6 @@ namespace ASCompletion.Completion
                     }
                 }
             }
-
 			// method parameters
             if (local.ContextFunction != null && local.ContextFunction.Parameters != null)
 			{
@@ -2614,24 +2659,23 @@ namespace ASCompletion.Completion
                     return result;
                 }
 			}
-
-			// class members
+            // class members
             if (!inClass.IsVoid())
             {
                 FindMember(token, inClass, result, 0, 0);
                 if (!result.IsNull())
                     return result;
             }
+            // file member
             if (inFile.Version != 2 || inClass.IsVoid())
             {
-                // file member
                 FindMember(token, inFile, result, 0, 0);
                 if (!result.IsNull())
                     return result;
             }
-
 			// current file types
             foreach(ClassModel aClass in inFile.Classes)
+            {
                 if (aClass.Name == token)
                 {
                     if (!context.InPrivateSection || aClass.Access == Visibility.Private)
@@ -2641,7 +2685,7 @@ namespace ASCompletion.Completion
                         return result;
                     }
                 }
-
+            }
             // visible types & declarations
             var visible = context.GetVisibleExternalElements();
             foreach (MemberModel aDecl in visible)
@@ -3646,7 +3690,12 @@ namespace ASCompletion.Completion
 			return word;
 		}
 
-		static public ASResult GetExpressionType(ScintillaControl sci, int position, bool filterVisibility = true)
+        static public ASResult GetExpressionType(ScintillaControl sci, int position)
+        {
+            return GetExpressionType(sci, position, true);
+        }
+
+		static public ASResult GetExpressionType(ScintillaControl sci, int position, bool filterVisibility)
 		{
             // context
             int line = sci.LineFromPosition(position);
@@ -3764,7 +3813,8 @@ namespace ASCompletion.Completion
 
         private static string GetToolTipDoc(MemberModel model)
         {
-            return ASDocumentation.GetTipShortDetails(model, null).TrimStart(new char[] { ' ', '\u2026' });
+            string details = (UITools.Manager.ShowDetails) ? ASDocumentation.GetTipFullDetails(model, null) : ASDocumentation.GetTipShortDetails(model, null);
+            return details.TrimStart(new char[] { ' ', '\u2026' });
         }
 
 		static private string MemberTooltipText(MemberModel member, ClassModel inClass)
@@ -3911,8 +3961,6 @@ namespace ASCompletion.Completion
         {
             ContextFeatures features = ASContext.Context.Features;
             FileModel cFile = ASContext.Context.CurrentModel;
-            ClassModel cClass = ASContext.Context.CurrentClass;
-            MemberModel cMember = ASContext.Context.CurrentMember;
             FileModel inFile = null;
             MemberModel import = null;
 
@@ -4055,11 +4103,16 @@ namespace ASCompletion.Completion
 
         private static void InsertSnippet(string word)
         {
+            if (HasSnippet(word))
+                PluginBase.MainForm.CallCommand("InsertSnippet", word);
+        }
+
+        public static bool HasSnippet(string word)
+        {
             String global = Path.Combine(PathHelper.SnippetDir, word + ".fds");
             String specificDir = Path.Combine(PathHelper.SnippetDir, ASContext.Context.Settings.LanguageId);
             String specific = Path.Combine(specificDir, word + ".fds");
-            if (File.Exists(specific) || File.Exists(global))
-                PluginBase.MainForm.CallCommand("InsertSnippet", word);
+            return File.Exists(specific) || File.Exists(global);
         }
 
 		/// <summary>
@@ -4148,7 +4201,7 @@ namespace ASCompletion.Completion
     /// </summary>
     public class MemberItem : ICompletionListItem
     {
-        private MemberModel member;
+        protected MemberModel member;
         private int icon;
 
         public MemberItem(MemberModel oMember)
@@ -4162,11 +4215,11 @@ namespace ASCompletion.Completion
             get { return member.FullName; }
         }
 
-        public string Description
+        public virtual string Description
         {
             get
             {
-                return ClassModel.MemberDeclaration(member) + ASDocumentation.GetTipDetails(member, null);
+                return ClassModel.MemberDeclaration(member) + ASDocumentation.GetTipDetails(member, null); 
             }
         }
 
@@ -4192,6 +4245,24 @@ namespace ASCompletion.Completion
         public override string ToString()
         {
             return Label;
+        }
+    }
+
+    /// <summary>
+    /// Template completion list item
+    /// </summary>
+    public class TemplateItem : MemberItem
+    {
+        public TemplateItem(MemberModel oMember) : base(oMember) { }
+
+        override public string Description
+        {
+            get
+            {
+                if (ASComplete.HasSnippet(member.Name))
+                    member.Comments = "[i](" + TextHelper.GetString("Info.InsertKeywordSnippet") + ")[/i]";
+                return base.Description;
+            }
         }
     }
 

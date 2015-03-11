@@ -395,16 +395,7 @@ namespace FlashDebugger
         /// </summary>
         private void flashInterface_BreakpointEvent(object sender)
 		{
-			Location loc = FlashInterface.getCurrentLocation();
-			// todo checking for loc here, but should handle swfloaded case and wait with breakpoint event
-			if (loc != null && PluginMain.breakPointManager.ShouldBreak(loc.getFile(), loc.getLine()))
-			{
-				UpdateUI(DebuggerState.BreakHalt);
-			}
-			else
-			{
-				FlashInterface.StepResume();
-			}
+			UpdateUI(DebuggerState.BreakHalt);
 		}
 
         /// <summary>
@@ -614,29 +605,15 @@ namespace FlashDebugger
 			}
 			if (CurrentLocation != null && CurrentLocation.getFile() != null)
 			{
-				ScintillaControl sci;
-				String localPath = GetLocalPath(CurrentLocation.getFile());
+                String localPath = GetLocalPath(CurrentLocation.getFile());
 				if (localPath != null)
 				{
-					sci = ScintillaHelper.GetScintillaControl(localPath);
-					if (sci == null)
+                    int line = CurrentLocation.getLine() - 1;
+                    ScintillaControl sci = ScintillaHelper.ActivateDocument(localPath, line, false);
+                    if (sci == null) return;
+					if (bSetMarker)
 					{
-						PluginBase.MainForm.OpenEditableDocument(localPath);
-						sci = ScintillaHelper.GetScintillaControl(localPath);
-					}
-					if (sci != null)
-					{
-						Int32 i = ScintillaHelper.GetScintillaControlIndex(sci);
-						if (i != -1)
-						{
-							PluginBase.MainForm.Documents[i].Activate();
-							Int32 line = CurrentLocation.getLine() - 1;
-							sci.GotoLine(line);
-							if (bSetMarker)
-							{
-								sci.MarkerAdd(line, ScintillaHelper.markerCurrentLine);
-							}
-						}
+						sci.MarkerAdd(line, ScintillaHelper.markerCurrentLine);
 					}
 				}
 			}

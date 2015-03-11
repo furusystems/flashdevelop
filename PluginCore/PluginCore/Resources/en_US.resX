@@ -1856,6 +1856,14 @@ Alternatively, Adobe Flash Professional can also be used for syntax checking - p
   <data name="ProjectManager.Label.BuildProject" xml:space="preserve">
     <value>&amp;Build Project</value>
   </data>
+  <data name="ProjectManager.Label.StopBuild" xml:space="preserve">
+    <value>Stop Build</value>
+    <comment>Added after 4.6.4</comment>
+  </data>
+  <data name="ProjectManager.Info.AreYouSureToStopBuild" xml:space="preserve">
+    <value>Are you sure you want to stop the build?</value>
+    <comment>Added after 4.6.4</comment>
+  </data>
   <data name="ProjectManager.Label.Cancel" xml:space="preserve">
     <value>&amp;Cancel</value>
   </data>
@@ -2886,6 +2894,14 @@ Please note that with injection enabled, you will not be able to use many projec
   <data name="ASCompletion.Info.GeneratorTemplate" xml:space="preserve">
     <value>Generator template</value>
   </data>
+  <data name="ASCompletion.Info.InsertKeywordSnippet" xml:space="preserve">
+    <value>Press Tab to insert the snippet for this keyword</value>
+    <comment>Added after 4.6.4</comment>
+  </data>
+  <data name="ASCompletion.Info.ShowDetails" xml:space="preserve">
+    <value>Press F1 to toggle details</value>
+    <comment>Added after 4.6.4</comment>
+  </data>
   <data name="ASCompletion.Info.SearchInvitation" xml:space="preserve">
     <value>Search...</value>
   </data>
@@ -3390,7 +3406,8 @@ Please note that with injection enabled, you will not be able to use many projec
     <value>Enable All Breakpoints</value>
   </data>
   <data name="FlashDebugger.Label.Exp" xml:space="preserve">
-    <value>Exp</value>
+    <value>Condition</value>
+    <comment>Modified after 4.6.4</comment>
   </data>
   <data name="FlashDebugger.Label.Finish" xml:space="preserve">
     <value>Step &amp;Out</value>
@@ -5301,6 +5318,14 @@ Custom locales must be an extension of a default locale, e.g. en-US.</value>
   </data>
   <data name="ASCompletion.Label.GenerateProtectedVar" xml:space="preserve">
     <value>Declare protected variable</value>
+    <comment>Added after 4.6.4</comment>
+  </data>
+  <data name="ProjectManager.Info.ExtensionChangeWarning" xml:space="preserve">
+    <value>If you change a file name extension, the file may become unusable. Are you sure you want to change it?</value>
+    <comment>Added after 4.6.4</comment>
+  </data>
+  <data name="CodeRefactor.Info.MovingOutsideClasspath" xml:space="preserve">
+    <value>You are moving files outside your defined classpaths. Refactoring is not available and your project may stop working. Continue?</value>
     <comment>Added after 4.6.4</comment>
   </data>
 </root>

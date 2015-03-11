@@ -24,7 +24,6 @@ namespace HaXeContext
         {
             this.haxeProcess = haxeProcess;
             this.port = port;
-            //haxeProcess.Start(); // deferred to first use
             Environment.SetEnvironmentVariable("HAXE_SERVER_PORT", "" + port);
         }
 
@@ -39,11 +38,11 @@ namespace HaXeContext
             Stop();
         }
 
-        public string[] GetCompletion(string[] args)
+        public string GetCompletion(string[] args)
         {
+            if (args == null || haxeProcess == null)
+                return string.Empty;
             if (!IsRunning()) StartServer();
-            if (args == null)
-                return new string[0];
             try
             {
                 var client = new TcpClient("127.0.0.1", port);
@@ -54,7 +53,7 @@ namespace HaXeContext
                 writer.Write("\0");
                 writer.Flush();
                 var reader = new StreamReader(client.GetStream());
-                var lines = reader.ReadToEnd().Split('\n');
+                var lines = reader.ReadToEnd();
                 client.Close();
                 return lines;
             }
@@ -64,13 +63,13 @@ namespace HaXeContext
                 if (!failure && FallbackNeeded != null)
                     FallbackNeeded(false);
                 failure = true;
-                return new string[0];
+                return string.Empty;
             }
         }
 
         public void StartServer()
         {
-            if (IsRunning()) return;
+            if (haxeProcess == null || IsRunning()) return;
             haxeProcess.Start();
             if (!listening)
             {
@@ -90,7 +89,6 @@ namespace HaXeContext
         void haxeProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
             if (e.Data == null) return;
-            //TraceManager.AddAsync(e.Data);
             if (Regex.IsMatch(e.Data, "Error.*--wait"))
             {
                 if (!failure && FallbackNeeded != null) 

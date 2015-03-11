@@ -121,7 +121,7 @@ namespace AppMan
         {
             this.localeData = new LocaleData();
             String localeDir = Path.Combine(PathHelper.GetExeDirectory(), "Locales");
-            String localeFile = Path.Combine(PathHelper.GetExeDirectory(), this.localeId + ".xml");
+            String localeFile = Path.Combine(localeDir, this.localeId + ".xml");
             if (File.Exists(localeFile))
             {
                 this.localeData = ObjectSerializer.Deserialize(localeFile, this.localeData) as LocaleData;
@@ -1132,7 +1132,11 @@ namespace AppMan
                             this.entryStates[inst.Id] = text;
                             item.SubItems[3].ForeColor = color;
                             item.SubItems[3].Text = text;
-                            break;
+                            // If we get an exact match, we don't need to compare more...
+                            if (dep.Version == inst.Version && dep.Build == inst.Build)
+                            {
+                                break;
+                            }
                         }
                     }
                 }
