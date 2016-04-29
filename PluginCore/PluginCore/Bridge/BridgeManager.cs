@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using PluginCore.Bridge;
+﻿using System.IO;
 using PluginCore.Managers;
-using System.IO;
 
 namespace PluginCore.Bridge
 {
@@ -59,7 +55,7 @@ namespace PluginCore.Bridge
                 PluginBase.MainForm.StatusStrip.Items[0].Text = "  Opening document in host system...";
                 remoteClient.Send("open:" + shared);
             }
-            else TraceManager.AddAsync("Unable to connect to host bridge.");
+            else TraceManager.AddAsync("Unable to connect to FlashDevelop Bridge.");
         }
 
         /// <summary>
@@ -81,7 +77,7 @@ namespace PluginCore.Bridge
 
         public static bool IsRemote(string path)
         {
-            return Active && path != null && path.StartsWith(Settings.SharedDrive);
+            return Active && path != null && path.StartsWithOrdinal(Settings.SharedDrive);
         }
     }
 }

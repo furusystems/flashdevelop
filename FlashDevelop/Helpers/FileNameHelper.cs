@@ -1,8 +1,5 @@
 using System;
 using System.IO;
-using System.Text;
-using System.Collections.Generic;
-using System.Windows.Forms;
 using PluginCore.Helpers;
 
 namespace FlashDevelop.Helpers
@@ -17,6 +14,17 @@ namespace FlashDevelop.Helpers
             get
             {
                 return GetSettingFile("Images.png");
+            }
+        }
+
+        /// <summary>
+        /// Path to the large system image file
+        /// </summary>
+        public static String Images32
+        {
+            get
+            {
+                return GetSettingFile("Images32.png");
             }
         }
 
@@ -104,6 +112,7 @@ namespace FlashDevelop.Helpers
         {
             get
             {
+                //Alternative: Path.Combine(PathHelper.ShortcutsDir, "CURRENT");
                 return Path.Combine(PathHelper.SettingDir, "ShortcutData.fda");
             }
         }

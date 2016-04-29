@@ -1,21 +1,20 @@
 using System;
-using System.IO;
+using System.ComponentModel;
 using System.Drawing;
+using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
-using System.ComponentModel;
-using WeifenLuo.WinFormsUI.Docking;
-using PluginCore.Localization;
-using PluginCore.Utilities;
-using PluginCore.Managers;
-using PluginCore.Helpers;
 using PluginCore;
-using ProjectManager.Projects.AS3;
+using PluginCore.Helpers;
+using PluginCore.Localization;
+using PluginCore.Managers;
+using PluginCore.Utilities;
+using ProjectManager.Projects;
 
 namespace AirProperties
 {
-	public class PluginMain : IPlugin
-	{
+    public class PluginMain : IPlugin
+    {
         private String pluginName = "AirProperties";
         private String pluginGuid = "275b4759-0bc8-43bf-8b33-a69a16a9a978";
         private String pluginDesc = "Adds an AIR application properties management form for AIR projects.";
@@ -28,7 +27,7 @@ namespace AirProperties
         private Image pluginImage;
         private AirWizard wizard;
 
-	    #region Required Properties
+        #region Required Properties
 
         /// <summary>
         /// Api level of the plugin
@@ -42,41 +41,41 @@ namespace AirProperties
         /// Name of the plugin
         /// </summary> 
         public String Name
-		{
-			get { return this.pluginName; }
-		}
+        {
+            get { return this.pluginName; }
+        }
 
         /// <summary>
         /// GUID of the plugin
         /// </summary>
         public String Guid
-		{
-			get { return this.pluginGuid; }
-		}
+        {
+            get { return this.pluginGuid; }
+        }
 
         /// <summary>
         /// Author of the plugin
         /// </summary> 
         public String Author
-		{
-			get { return this.pluginAuth; }
-		}
+        {
+            get { return this.pluginAuth; }
+        }
 
         /// <summary>
         /// Description of the plugin
         /// </summary> 
         public String Description
-		{
-			get { return this.pluginDesc; }
-		}
+        {
+            get { return this.pluginDesc; }
+        }
 
         /// <summary>
         /// Web address for help
         /// </summary> 
         public String Help
-		{
-			get { return this.pluginHelp; }
-		}
+        {
+            get { return this.pluginHelp; }
+        }
 
         /// <summary>
         /// Object that contains the settings
@@ -95,35 +94,35 @@ namespace AirProperties
         {
             get { return this.settingObject; }
         }
-		
-		#endregion
-		
-		#region Required Methods
-		
-		/// <summary>
-		/// Initializes the plugin
-		/// </summary>
-		public void Initialize()
-		{
+        
+        #endregion
+        
+        #region Required Methods
+        
+        /// <summary>
+        /// Initializes the plugin
+        /// </summary>
+        public void Initialize()
+        {
             this.InitBasics();
             this.LoadSettings();
             this.CreateMenuItems();
             this.AddEventHandlers();
         }
-		
-		/// <summary>
-		/// Disposes the plugin
-		/// </summary>
-		public void Dispose()
-		{
+        
+        /// <summary>
+        /// Disposes the plugin
+        /// </summary>
+        public void Dispose()
+        {
             this.SaveSettings();
-		}
-		
-		/// <summary>
-		/// Handles the incoming events
-		/// </summary>
-		public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority prority)
-		{
+        }
+        
+        /// <summary>
+        /// Handles the incoming events
+        /// </summary>
+        public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority priority)
+        {
             switch (e.Type)
             {
                 case EventType.Command:
@@ -144,9 +143,9 @@ namespace AirProperties
                     }
                     break;
             } 
-		}
-		
-		#endregion
+        }
+        
+        #endregion
 
         #region Custom Methods
        
@@ -174,7 +173,8 @@ namespace AirProperties
         /// </summary>
         private void CreateMenuItems()
         {
-            this.pluginMenuItem = new ToolStripMenuItem(TextHelper.GetString("Label.ProjectMenuItem"), GetImage("blockdevice_small.png"), new EventHandler(this.OpenWizard), null);
+            Image image = PluginBase.MainForm.GetAutoAdjustedImage(GetImage("blockdevice_small.png"));
+            this.pluginMenuItem = new ToolStripMenuItem(TextHelper.GetString("Label.ProjectMenuItem"), image, new EventHandler(this.OpenWizard), null);
             PluginBase.MainForm.RegisterShortcutItem("ProjectMenu.AirApplicationProperties", this.pluginMenuItem);
             this.pluginMenuItem.Enabled = false;
         }
@@ -193,11 +193,12 @@ namespace AirProperties
         private void AddToolBarItems(ToolStrip toolStrip)
         {
             this.pmMenuButton = new ToolStripButton();
-            this.pmMenuButton.Image = GetImage("blockdevice_small.png");
-            this.pmMenuButton.Text = TextHelper.GetString("Label.ProjectMenuItem").Replace("&", "").Replace("...", "");
+            this.pmMenuButton.Image = this.pluginMenuItem.Image;
+            this.pmMenuButton.Text = TextHelper.GetStringWithoutMnemonicsOrEllipsis("Label.ProjectMenuItem");
             this.pmMenuButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
             this.pmMenuButton.Click += new EventHandler(this.OpenWizard);
-            toolStrip.Items.Insert(5, this.pmMenuButton);
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.AirApplicationProperties", this.pmMenuButton);
+            toolStrip.Items.Insert(6, this.pmMenuButton);
         }
 
         /// <summary>
@@ -206,12 +207,11 @@ namespace AirProperties
         public void UpdateMenuItems()
         {
             Boolean pluginActive = false;
-            ToolStrip mainToolStrip = (ToolStrip)PluginBase.MainForm.ToolStrip;
             if (this.pluginMenuItem == null || this.pmMenuButton == null) return;
             if (PluginBase.CurrentProject != null)
             {
-                ProjectManager.Projects.Project project = (ProjectManager.Projects.Project)PluginBase.CurrentProject;
-                pluginActive = project.MovieOptions.Platform.StartsWith("AIR");
+                Project project = (Project)PluginBase.CurrentProject;
+                pluginActive = project.MovieOptions.Platform.StartsWithOrdinal("AIR");
             }
             this.pluginMenuItem.Enabled = this.pmMenuButton.Enabled = pluginActive;
         }
@@ -219,7 +219,7 @@ namespace AirProperties
         /// <summary>
         /// Opens the plugin panel if closed
         /// </summary>
-        public void OpenWizard(Object sender, System.EventArgs e)
+        public void OpenWizard(Object sender, EventArgs e)
         {
             this.wizard = new AirWizard(this);
             if (this.wizard.IsPropertiesLoaded)
@@ -260,8 +260,8 @@ namespace AirProperties
             ObjectSerializer.Serialize(this.settingFilename, this.settingObject);
         }
 
-		#endregion
+        #endregion
 
-	}
-	
+    }
+    
 }

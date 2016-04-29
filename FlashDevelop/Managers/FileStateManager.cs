@@ -1,15 +1,11 @@
 using System;
-using System.IO;
-using System.Text;
-using System.Drawing;
 using System.Collections.Generic;
-using FlashDevelop.Utilities;
+using System.IO;
 using FlashDevelop.Helpers;
+using PluginCore;
 using PluginCore.Managers;
 using PluginCore.Utilities;
-using PluginCore.Helpers;
 using ScintillaNet;
-using PluginCore;
 
 namespace FlashDevelop.Managers
 {
@@ -127,6 +123,7 @@ namespace FlashDevelop.Managers
             }
             if (restorePosition)
             {
+                sci.FirstVisibleLine = so.LineScroll;
                 Int32 line = sci.LineFromPosition(so.Position);
                 sci.SetSel(so.Position, so.Position);
                 sci.EnsureVisible(line);
@@ -142,6 +139,7 @@ namespace FlashDevelop.Managers
             so.LineCount = sci.LineCount;
             so.Position = sci.CurrentPos;
             so.FileName = sci.FileName;
+            so.LineScroll = sci.FirstVisibleLine;
             for (Int32 line = 0;; line++)
             {
                 Int32 lineNext = sci.ContractedFoldNext(line);
@@ -172,6 +170,7 @@ namespace FlashDevelop.Managers
     {
         public Int32 Position = 0;
         public Int32 LineCount = 0;
+        public Int32 LineScroll = 0;
         public String FileName = String.Empty;
         public List<Int32> BookmarkedLines = new List<Int32>();
         public List<Int32> FoldedLines = new List<Int32>();

@@ -27,6 +27,8 @@ namespace Aga.Controls.Tree
 
 		private const int HeaderLeftMargin = 5;
         private const int HeaderRightMargin = 5;   
+		private const int HeaderTopMargin = 3;
+        private const int HeaderBottomMargin = 3;   
 		private const int SortOrderMarkMargin = 8;
 
         private TextFormatFlags _headerFlags;
@@ -215,6 +217,61 @@ namespace Aga.Controls.Tree
 			base.Dispose(disposing);
 		}
 
+		internal Size GetActualSize(DrawContext context)
+		{
+			if (IsVisible)
+			{
+				Size s = MeasureSize(context);
+				return new Size(s.Width + HeaderLeftMargin, HeaderTopMargin + s.Height + HeaderBottomMargin);
+			}
+			return Size.Empty;
+		}
+
+		public Size MeasureSize(DrawContext context)
+		{
+			return GetLabelSize(context);
+		}
+
+		protected Size GetLabelSize(DrawContext context)
+		{
+			return GetLabelSize(context, Header);
+		}
+
+		protected Size GetLabelSize(DrawContext context, string label)
+		{
+			PerformanceAnalyzer.Start("GetLabelSize");
+
+			Font font = GetDrawingFont(context, label);
+			Size s = Size.Empty;
+			if (!UseCompatibleTextRendering)
+				s = TextRenderer.MeasureText(label, font);
+			else
+			{
+				SizeF sf = context.Graphics.MeasureString(label, font);
+				s = new Size((int)Math.Ceiling(sf.Width), (int)Math.Ceiling(sf.Height));
+			}
+
+			PerformanceAnalyzer.Finish("GetLabelSize");
+
+			if (!s.IsEmpty)
+				return s;
+			else
+				return new Size(10, font.Height);
+		}
+
+		protected Font GetDrawingFont(DrawContext context, string label)
+		{
+			return context.Font;
+		}
+
+		private bool _useCompatibleTextRendering = false;
+		[DefaultValue(false)]
+		public bool UseCompatibleTextRendering
+		{
+			get { return _useCompatibleTextRendering; }
+			set { _useCompatibleTextRendering = value; }
+		}
+
 		#region Draw
 
 		private static VisualStyleRenderer _normalRenderer;
@@ -231,23 +288,22 @@ namespace Aga.Controls.Tree
 			}
 		}
 
-		internal Bitmap CreateGhostImage(Rectangle bounds, Font font)
+		internal Bitmap CreateGhostImage(Rectangle bounds, Font font, Color color)
 		{
 			Bitmap b = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb);
 			Graphics gr = Graphics.FromImage(b);
 			gr.FillRectangle(SystemBrushes.ControlDark, bounds);
-			DrawContent(gr, bounds, font);
+			DrawContent(gr, bounds, font, color);
 			BitmapHelper.SetAlphaChanelValue(b, 150);
 			return b;
 		}
 
-		internal void Draw(Graphics gr, Rectangle bounds, Font font, bool pressed, bool hot)
+		internal void Draw(Graphics gr, Rectangle bounds, Font font, bool pressed, bool hot, Color color)
 		{
-			DrawBackground(gr, bounds, pressed, hot);
-			DrawContent(gr, bounds, font);
+			DrawContent(gr, bounds, font, color);
 		}
 
-        private void DrawContent(Graphics gr, Rectangle bounds, Font font)
+        private void DrawContent(Graphics gr, Rectangle bounds, Font font, Color color)
         {
             Rectangle innerBounds = new Rectangle(bounds.X + HeaderLeftMargin, bounds.Y,
                                    bounds.Width - HeaderLeftMargin - HeaderRightMargin,
@@ -274,9 +330,9 @@ namespace Aga.Controls.Tree
 			}
 
 			if (textSize.Width < maxTextSize.Width)
-				TextRenderer.DrawText(gr, Header, font, innerBounds, SystemColors.ControlText, _baseHeaderFlags | TextFormatFlags.Left);
+				TextRenderer.DrawText(gr, Header, font, innerBounds, color, _baseHeaderFlags | TextFormatFlags.Left);
             else
-				TextRenderer.DrawText(gr, Header, font, innerBounds, SystemColors.ControlText, _headerFlags);
+				TextRenderer.DrawText(gr, Header, font, innerBounds, color, _headerFlags);
         }
 
 		private void DrawSortMark(Graphics gr, Rectangle bounds, int x)
@@ -334,11 +390,20 @@ namespace Aga.Controls.Tree
 			}
 		}
 
-		#endregion
+        internal static void DrawCustomBackground(Graphics gr, Color back, Color fore, Rectangle bounds, bool pressed, bool hot)
+        {
+            gr.FillRectangle(new SolidBrush(back), bounds);
+            Pen p1 = new Pen(fore);
+            gr.DrawLine(p1, bounds.X, bounds.Y - 1, bounds.Right, bounds.Y - 1);
+            gr.DrawLine(p1, bounds.Right - 1, bounds.Y + 3, bounds.Right - 1, bounds.Bottom - 4);
+            gr.DrawLine(p1, bounds.X, bounds.Bottom, bounds.Right, bounds.Bottom);
+        }
 
-		#region Events
+        #endregion
 
-		public event EventHandler HeaderChanged;
+        #region Events
+
+        public event EventHandler HeaderChanged;
 		private void OnHeaderChanged()
 		{
 			if (HeaderChanged != null)

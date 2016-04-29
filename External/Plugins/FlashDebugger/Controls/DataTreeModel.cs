@@ -1,45 +1,51 @@
-﻿using Aga.Controls.Tree;
+﻿using System.Text;
+using Aga.Controls.Tree;
+using PluginCore;
 
 namespace FlashDebugger.Controls
 {
     public class DataTreeModel : TreeModel
     {
-		static private char[] chTrims = { '.' };
+        static private char[] chTrims = { '.' };
 
         public string GetFullPath(Node node)
         {
             if (node == Root) return string.Empty;
-            else
+
+            var path = new StringBuilder();
+            while (node != Root && node != null)
             {
-                string path = string.Empty;
-				while (node != Root && node != null)
-                {
-                    path = string.Format("{0}.{1}", node.Text, path);
-                    node = node.Parent;
-                }
-                return path.TrimEnd(chTrims);
+                path.Insert(0, node.Text).Insert(node.Text.Length, ".");
+                node = node.Parent;
             }
+            if (path.Length > 0) path.Length--;
+
+            return path.ToString();
         }
 
-		public Node FindNode(string path)
+        public Node FindNode(string path)
         {
-            if (path == string.Empty) return Root;
-            else return FindNode(Root, path, 0);
+            if (string.IsNullOrEmpty(path)) return Root;
+            return FindNode(Root, path, new StringBuilder());
         }
 
-        private Node FindNode(Node root, string path, int level)
+        private Node FindNode(Node root, string path, StringBuilder nodePath)
         {
-			foreach (Node node in root.Nodes)
+            int initialLength = nodePath.Length;
+            foreach (Node node in root.Nodes)
             {
-                if (path == GetFullPath(node)) return node;
-                else
+                nodePath.Append(node.Text);
+                if (path == nodePath.ToString()) return node;
+                nodePath.Append(".");
+                if (path.StartsWithOrdinal(nodePath.ToString()))
                 {
                     if (node.Nodes.Count > 0)
                     {
-                        Node tmp = FindNode(node, path, level + 1);
+                        Node tmp = FindNode(node, path, nodePath);
                         if (tmp != null) return tmp;
                     }
                 }
+                else nodePath.Length = initialLength;
             }
             return null;
         }

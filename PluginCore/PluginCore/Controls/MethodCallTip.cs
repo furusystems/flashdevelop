@@ -1,8 +1,6 @@
-using System;
-using System.Diagnostics;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
+using PluginCore.Utilities;
 using ScintillaNet;
 
 namespace PluginCore.Controls
@@ -16,10 +14,10 @@ namespace PluginCore.Controls
         public event UpdateCallTipHandler OnUpdateCallTip;
 
 
-		public static string HLTextStyleBeg = "[B]";
-		public static string HLTextStyleEnd = "[/B]";
-		public static string HLBgStyleBeg = "[BGCOLOR=#000:OVERLAY]";
-		public static string HLBgStyleEnd = "[/BGCOLOR]";
+        public static string HLTextStyleBeg = "[B]";
+        public static string HLTextStyleEnd = "[/B]";
+        public static string HLBgStyleBeg = "[BGCOLOR=#000:OVERLAY]";
+        public static string HLBgStyleEnd = "[/BGCOLOR]";
 
 
         // state
@@ -29,12 +27,20 @@ namespace PluginCore.Controls
         protected bool isActive;
         protected int memberPos;
         protected int startPos;
-		protected int currentPos;
-		protected int deltaPos;
+        protected int currentPos;
+        protected int deltaPos;
         protected int currentLine;
 
         public MethodCallTip(IMainForm mainForm): base(mainForm)
         {
+            Color color = PluginBase.MainForm.GetThemeColor("MethodCallTip.SelectedBack");
+            Color fore = PluginBase.MainForm.GetThemeColor("MethodCallTip.SelectedFore");
+            if (color != Color.Empty) HLBgStyleBeg = "[BGCOLOR=" + DataConverter.ColorToHex(color).Replace("0x", "#") + "]";
+            if (fore != Color.Empty)
+            {
+                HLTextStyleBeg = "[B][COLOR=" + DataConverter.ColorToHex(fore).Replace("0x", "#") + "]";
+                HLTextStyleEnd = "[/COLOR][/B]";
+            }
         }
 
         public bool CallTipActive
@@ -49,11 +55,11 @@ namespace PluginCore.Controls
 
         public override void Hide()
         {
-			if (isActive)
-			{
-				isActive = false;
+            if (isActive)
+            {
+                isActive = false;
                 UITools.Manager.UnlockControl(); // unlock keys
-			}
+            }
             faded = false;
             currentText = null;
             currentHLStart = -1;
@@ -66,10 +72,10 @@ namespace PluginCore.Controls
             return position == currentPos;
         }
 
-		public void CallTipShow(ScintillaControl sci, int position, string text)
-		{
-			CallTipShow(sci, position, text, true);
-		}
+        public void CallTipShow(ScintillaControl sci, int position, string text)
+        {
+            CallTipShow(sci, position, text, true);
+        }
         public void CallTipShow(ScintillaControl sci, int position, string text, bool redraw)
         {
             if (toolTip.Visible && position == memberPos && text == currentText)
@@ -77,13 +83,13 @@ namespace PluginCore.Controls
 
             toolTip.Visible = false;
             currentText = text;
-			SetText(text, true);
+            SetText(text, true);
 
             memberPos = position;
             startPos = memberPos + toolTipRTB.Text.IndexOf('(');
             currentPos = sci.CurrentPos;
-			deltaPos = startPos - currentPos + 1;
-            currentLine = sci.LineFromPosition(currentPos);
+            deltaPos = startPos - currentPos + 1;
+            currentLine = sci.CurrentLine;
             PositionControl(sci);
             // state
             isActive = true;
@@ -95,7 +101,7 @@ namespace PluginCore.Controls
         {
             // compute control location
             Point p = new Point(sci.PointXFromPosition(memberPos), sci.PointYFromPosition(memberPos));
-            p = ((Form)PluginBase.MainForm).PointToClient(((Control)sci).PointToScreen(p));
+            p = ((Form)PluginBase.MainForm).PointToClient(sci.PointToScreen(p));
             toolTip.Left = p.X /*+ sci.Left*/;
             bool hasListUp = !CompletionList.Active || CompletionList.listUp;
             if (currentLine > sci.LineFromPosition(memberPos) || !hasListUp) toolTip.Top = p.Y - toolTip.Height /*+ sci.Top*/;
@@ -109,39 +115,39 @@ namespace PluginCore.Controls
             toolTip.BringToFront();
         }
 
-		public void CallTipSetHlt(int start, int end)
-		{
-			CallTipSetHlt(start, end, true);
-		}
+        public void CallTipSetHlt(int start, int end)
+        {
+            CallTipSetHlt(start, end, true);
+        }
         public void CallTipSetHlt(int start, int end, bool forceRedraw)
         {
-			if (currentHLStart == start && currentHLEnd == end)
-				return;
+            if (currentHLStart == start && currentHLEnd == end)
+                return;
 
             currentHLStart = start;
             currentHLEnd = end;
-			if (start != end)
-			{
-				string savedRawText = rawText;
+            if (start != end)
+            {
+                string savedRawText = rawText;
 
-				try
-				{
-					rawText = rawText.Substring(0, start)
-							+ HLBgStyleBeg + HLTextStyleBeg
-							+ rawText.Substring(start, end - start)
-							+ HLTextStyleEnd + HLBgStyleEnd
-							+ rawText.Substring(end);
+                try
+                {
+                    rawText = rawText.Substring(0, start)
+                            + HLBgStyleBeg + HLTextStyleBeg
+                            + rawText.Substring(start, end - start)
+                            + HLTextStyleEnd + HLBgStyleEnd
+                            + rawText.Substring(end);
 
-					Redraw();
-				}
-				catch { }
+                    Redraw();
+                }
+                catch { }
 
-				rawText = savedRawText;
-			}
-			else
-			{
-				Redraw();
-			}
+                rawText = savedRawText;
+            }
+            else
+            {
+                Redraw();
+            }
         }
 
         #region Keys handling
@@ -152,7 +158,7 @@ namespace PluginCore.Controls
             UpdateTip(sci);
         }
 
-        public void UpdateTip(ScintillaControl sci)
+        public new void UpdateTip(ScintillaControl sci)
         {
             if (OnUpdateCallTip != null) OnUpdateCallTip(sci, currentPos);
         }
@@ -192,7 +198,7 @@ namespace PluginCore.Controls
                     {
                         sci.CharRight();
                         currentPos = sci.CurrentPos;
-                        if (sci.LineFromPosition(sci.CurrentPos) != currentLine) Hide();
+                        if (sci.CurrentLine != currentLine) Hide();
                         else if (OnUpdateCallTip != null) OnUpdateCallTip(sci, currentPos);
                     }
                     return true;
@@ -205,7 +211,7 @@ namespace PluginCore.Controls
                         if (currentPos < startPos) Hide();
                         else
                         {
-                            if (sci.LineFromPosition(sci.CurrentPos) != currentLine) Hide();
+                            if (sci.CurrentLine != currentLine) Hide();
                             else if (OnUpdateCallTip != null) OnUpdateCallTip(sci, currentPos);
                         }
                     }
@@ -214,7 +220,7 @@ namespace PluginCore.Controls
                 case Keys.Back:
                     sci.DeleteBack();
                     currentPos = sci.CurrentPos;
-					if (currentPos + deltaPos < startPos) Hide();
+                    if (currentPos + deltaPos < startPos) Hide();
                     else if (OnUpdateCallTip != null) OnUpdateCallTip(sci, currentPos);
                     return true;
 

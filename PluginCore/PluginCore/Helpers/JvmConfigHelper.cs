@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics;
 using System.IO;
 
 namespace PluginCore.Helpers
@@ -38,20 +38,28 @@ namespace PluginCore.Helpers
 
             args = ExpandArguments(args, config, 0);
 
-            if (args.IndexOf("-Duser.language") < 0)
+            // add language if not specified
+            if (args.IndexOf("-Duser.language", StringComparison.Ordinal) < 0)
             {
                 args += " -Duser.language=en -Duser.region=US";
             }
+
+            // flex needs old Java 6 sort
+            if (args.IndexOf("-Djava.util.Arrays.useLegacyMergeSort", StringComparison.Ordinal) < 0)
+            {
+                args += " -Djava.util.Arrays.useLegacyMergeSort=true";
+            }
+
             config["java.args"] = args;
             return config;
         }
 
         private static string ExpandArguments(string value, Dictionary<string, string> config, int depth)
         {
-            while (value.IndexOf("${") >= 0)
+            while (value.IndexOf("${", StringComparison.Ordinal) >= 0)
             {
-                int start = value.IndexOf("${");
-                int end = value.IndexOf("}", start);
+                int start = value.IndexOf("${", StringComparison.Ordinal);
+                int end = value.IndexOf('}', start);
                 if (end < start) return value;
                 string key = value.Substring(start + 2, end - start - 2).Trim();
                 string eval = config.ContainsKey(key) ? config[key] : "";
@@ -73,7 +81,7 @@ namespace PluginCore.Helpers
         {
             string defaultExe = "java.exe";
             string home = GetJavaHome(jvmConfig, flexSdkPath);
-            if (!String.IsNullOrEmpty(home) && !home.StartsWith("%"))
+            if (!String.IsNullOrEmpty(home) && !home.StartsWith("%", StringComparison.Ordinal))
             {
                 return Path.Combine(home, "bin\\java.exe");
             }
@@ -90,7 +98,7 @@ namespace PluginCore.Helpers
             if (home == null)
             {
                 home = Environment.ExpandEnvironmentVariables("%JAVA_HOME%");
-                if (home.StartsWith("%")) home = null;
+                if (home.StartsWith("%", StringComparison.Ordinal)) home = null;
             }
             return home;
         }
@@ -99,9 +107,9 @@ namespace PluginCore.Helpers
         // because JvmConfigHelper is used in external tool 'FDBuild'
         private static string ResolvePath(String path, String relativeTo, Boolean checkResolvedPathExisting)
         {
-            if (path == null || path.Length == 0) return null;
-            Boolean isPathNetworked = path.StartsWith("\\\\") || path.StartsWith("//");
-            Boolean isPathAbsSlashed = (path.StartsWith("\\") || path.StartsWith("/")) && !isPathNetworked;
+            if (string.IsNullOrEmpty(path)) return null;
+            Boolean isPathNetworked = path.StartsWith("\\\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
+            Boolean isPathAbsSlashed = (path.StartsWith("\\", StringComparison.Ordinal) || path.StartsWith("/", StringComparison.Ordinal)) && !isPathNetworked;
             if (isPathAbsSlashed) path = Path.GetPathRoot(AppDir) + path.Substring(1);
             if (Path.IsPathRooted(path) || isPathNetworked) return path;
             String resolvedPath;
@@ -119,7 +127,7 @@ namespace PluginCore.Helpers
         {
             get
             {
-                return Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
+                return Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
             }
         }
 

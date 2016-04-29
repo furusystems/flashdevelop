@@ -5,13 +5,13 @@ using ProjectManager.Projects;
 
 namespace ProjectManager.Building
 {
-	class ArgumentBuilder
-	{
-		ArrayList args;
+    class ArgumentBuilder
+    {
+        ArrayList args;
 
-		public ArgumentBuilder()
-		{
-			args = new ArrayList();
+        public ArgumentBuilder()
+        {
+            args = new ArrayList();
         }
 
         public void Add(string[] arguments, bool releaseMode)
@@ -23,12 +23,12 @@ namespace ProjectManager.Building
                     if (line.Length == 0) 
                         continue;
                     // conditional arguments
-                    if (line.StartsWith("DEBUG:"))
+                    if (line.StartsWith("DEBUG:", StringComparison.Ordinal))
                     {
                         if (releaseMode) continue;
                         else line = line.Substring("DEBUG:".Length).Trim();
                     }
-                    if (line.StartsWith("RELEASE:"))
+                    if (line.StartsWith("RELEASE:", StringComparison.Ordinal))
                     {
                         if (!releaseMode) continue;
                         else line = line.Substring("RELEASE:".Length).Trim();
@@ -38,18 +38,18 @@ namespace ProjectManager.Building
                 }
         }
 
-		public void Add(string argument, params string[] values)
-		{
-			args.Add(argument);
-			foreach (string value in values)
+        public void Add(string argument, params string[] values)
+        {
+            args.Add(argument);
+            foreach (string value in values)
                 if (value != null && value.Length > 0) args.Add(value);
-		}
+        }
 
-		public override string ToString()
-		{
-			string[] argArray = args.ToArray(typeof(string)) as string[];
+        public override string ToString()
+        {
+            string[] argArray = args.ToArray(typeof(string)) as string[];
             string line = string.Join(" ", argArray);
             return line;
-		}
-	}
+        }
+    }
 }

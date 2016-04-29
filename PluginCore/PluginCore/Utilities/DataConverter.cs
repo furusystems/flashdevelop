@@ -1,10 +1,9 @@
 using System;
-using System.Text;
 using System.Drawing;
-using System.Drawing.Imaging;
-using System.Collections.Generic;
-using PluginCore.Managers;
+using System.Globalization;
+using System.Text;
 using System.Windows.Forms;
+using PluginCore.Managers;
 
 namespace PluginCore.Utilities
 {
@@ -35,24 +34,8 @@ namespace PluginCore.Utilities
         /// </summary>
         public static String KeysToString(Keys keys)
         {
-            String str = "";
-            if ((keys & Keys.Alt) == Keys.Alt)
-            {
-                keys -= Keys.Alt;
-                str += "Alt+";
-            }
-            if ((keys & Keys.Control) == Keys.Control) 
-            {
-                keys -= Keys.Control;
-                str += "Ctrl+";
-            }
-            if ((keys & Keys.Shift) == Keys.Shift) 
-            {
-                keys -= Keys.Shift; 
-                str += "Shift+";
-            }
-            str += keys.ToString().Replace(", ", "+");
-            return str;
+            KeysConverter kc = new KeysConverter();
+            return kc.ConvertToString(keys);
         }
 
         /// <summary>
@@ -91,7 +74,7 @@ namespace PluginCore.Utilities
         }
 
         /// <summary>
-        /// Converts a String to a color
+        /// Converts a String to a color (BGR order)
         /// </summary>
         public static Int32 StringToColor(String aColor)
         {
@@ -101,7 +84,7 @@ namespace PluginCore.Utilities
                 if (c.ToArgb() == 0 && aColor.Length >= 6)
                 {
                     Int32 col = 0;
-                    if (aColor.StartsWith("0x")) Int32.TryParse(aColor.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out col);
+                    if (aColor.StartsWithOrdinal("0x")) Int32.TryParse(aColor.Substring(2), NumberStyles.HexNumber, null, out col);
                     else Int32.TryParse(aColor, out col);
                     return TO_COLORREF(col);
                 }
@@ -123,11 +106,27 @@ namespace PluginCore.Utilities
         }
 
         /// <summary>
-        /// Converts a color to a integer
+        /// Converts a integer (BGR order) to a color
+        /// </summary>
+        private static Color BGRToColor(Int32 bgr)
+        {
+            return Color.FromArgb((bgr >> 0) & 0xff, (bgr >> 8) & 0xff, (bgr >> 16) & 0xff);
+        }
+
+        /// <summary>
+        /// Converts a color to an integer (BGR order)
+        /// </summary>
+        public static Int32 ColorToBGR(Color color)
+        {
+            return TO_COLORREF(color.ToArgb() & 0x00ffffff);
+        }
+
+        /// <summary>
+        /// Alias for ColorToBGR to not break the API.
         /// </summary>
         public static Int32 ColorToInt32(Color color)
         {
-            return TO_COLORREF(color.ToArgb() & 0x00ffffff);
+            return ColorToBGR(color);
         }
 
     }

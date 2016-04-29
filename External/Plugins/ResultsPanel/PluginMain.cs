@@ -1,19 +1,18 @@
 using System;
-using System.IO;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
-using System.ComponentModel;
-using WeifenLuo.WinFormsUI.Docking;
-using PluginCore.Localization;
-using PluginCore.Utilities;
-using PluginCore.Managers;
-using PluginCore.Helpers;
 using PluginCore;
+using PluginCore.Helpers;
+using PluginCore.Localization;
+using PluginCore.Managers;
+using PluginCore.Utilities;
+using WeifenLuo.WinFormsUI.Docking;
 
 namespace ResultsPanel
 {
-	public class PluginMain : IPlugin
-	{
+    public class PluginMain : IPlugin
+    {
         private String pluginName = "ResultsPanel";
         private String pluginGuid = "24df7cd8-e5f0-4171-86eb-7b2a577703ba";
         private String pluginHelp = "www.flashdevelop.org/community/";
@@ -26,10 +25,10 @@ namespace ResultsPanel
         private Image pluginImage;
 
         // Shortcut management
-        public Keys NextError = Keys.F12;
-        public Keys PrevError = Keys.Shift | Keys.F12;
+        public const Keys CopyEntryKeys = Keys.Control | Keys.C;
+        public const Keys IgnoreEntryKeys = Keys.Delete;
 
-	    #region Required Properties
+        #region Required Properties
 
         /// <summary>
         /// Api level of the plugin
@@ -43,41 +42,41 @@ namespace ResultsPanel
         /// Name of the plugin
         /// </summary> 
         public String Name
-		{
-			get { return this.pluginName; }
-		}
+        {
+            get { return this.pluginName; }
+        }
 
         /// <summary>
         /// GUID of the plugin
         /// </summary>
         public String Guid
-		{
-			get { return this.pluginGuid; }
-		}
+        {
+            get { return this.pluginGuid; }
+        }
 
         /// <summary>
         /// Author of the plugin
         /// </summary> 
         public String Author
-		{
-			get { return this.pluginAuth; }
-		}
+        {
+            get { return this.pluginAuth; }
+        }
 
         /// <summary>
         /// Description of the plugin
         /// </summary> 
         public String Description
-		{
-			get { return this.pluginDesc; }
-		}
+        {
+            get { return this.pluginDesc; }
+        }
 
         /// <summary>
         /// Web address for help
         /// </summary> 
         public String Help
-		{
-			get { return this.pluginHelp; }
-		}
+        {
+            get { return this.pluginHelp; }
+        }
 
         /// <summary>
         /// Object that contains the settings
@@ -86,16 +85,16 @@ namespace ResultsPanel
         {
             get { return this.settingObject; }
         }
-		
-		#endregion
-		
-		#region Required Methods
-		
-		/// <summary>
-		/// Initializes the plugin
-		/// </summary>
-		public void Initialize()
-		{
+        
+        #endregion
+        
+        #region Required Methods
+        
+        /// <summary>
+        /// Initializes the plugin
+        /// </summary>
+        public void Initialize()
+        {
             this.InitBasics();
             this.LoadSettings();
             this.AddEventHandlers();
@@ -103,18 +102,18 @@ namespace ResultsPanel
             this.CreateMenuItem();
         }
 
-		/// <summary>
-		/// Disposes the plugin
-		/// </summary>
-		public void Dispose()
-		{
+        /// <summary>
+        /// Disposes the plugin
+        /// </summary>
+        public void Dispose()
+        {
             this.SaveSettings();
-		}
-		
-		/// <summary>
-		/// Handles the incoming events
-		/// </summary>
-        public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority prority)
+        }
+        
+        /// <summary>
+        /// Handles the incoming events
+        /// </summary>
+        public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority priority)
         {
             switch (e.Type)
             {
@@ -156,33 +155,33 @@ namespace ResultsPanel
 
                 case EventType.Keys:
                     KeyEvent ke = (KeyEvent)e;
-                    if (ke.Value == this.NextError)
+                    switch (PluginBase.MainForm.GetShortcutItemId(ke.Value))
                     {
-                        ke.Handled = true;
-                        this.pluginUI.NextEntry(null, null);
+                        case null:
+                            break;
+                        case "ResultsPanel.ShowNextResult":
+                            ke.Handled = pluginUI.NextEntry();
+                            break;
+                        case "ResultsPanel.ShowPrevResult":
+                            ke.Handled = pluginUI.PreviousEntry();
+                            break;
+                        case "ResultsPanel.ClearResults":
+                            ke.Handled = pluginUI.ClearOutput();
+                            break;
+                        case "ResultsPanel.ClearIgnoredEntries":
+                            ke.Handled = pluginUI.ClearIgnoredEntries();
+                            break;
+                        default:
+                            if (ke.Value == CopyEntryKeys) ke.Handled = pluginUI.CopyTextShortcut();
+                            else if (ke.Value == IgnoreEntryKeys) ke.Handled = pluginUI.IgnoreEntryShortcut();
+                            break;
                     }
-                    else if (ke.Value == this.PrevError)
-                    {
-                        ke.Handled = true;
-                        this.pluginUI.PreviousEntry(null, null);
-                    }
-                    break;
-
-                case EventType.Shortcut:
-                    DataEvent de = (DataEvent)e;
-                    if (de.Action == "ResultsPanel.ShowNextResult")
-                    {
-                        this.NextError = (Keys)de.Data;
-                    }
-                    else if (de.Action == "ResultsPanel.ShowPrevResult")
-                    {
-                        this.PrevError = (Keys)de.Data;
-                    }
+                    
                     break;
             }
         }
-		
-		#endregion
+        
+        #endregion
 
         #region Custom Methods
 
@@ -237,8 +236,10 @@ namespace ResultsPanel
             String title = TextHelper.GetString("Label.ViewMenuItem");
             ToolStripMenuItem viewMenu = (ToolStripMenuItem)PluginBase.MainForm.FindMenuItem("ViewMenu");
             ToolStripMenuItem viewItem = new ToolStripMenuItem(title, this.pluginImage, new EventHandler(this.OpenPanel));
-            PluginBase.MainForm.RegisterShortcutItem("ResultsPanel.ShowNextResult", this.NextError);
-            PluginBase.MainForm.RegisterShortcutItem("ResultsPanel.ShowPrevResult", this.PrevError);
+            PluginBase.MainForm.RegisterShortcutItem("ResultsPanel.ShowNextResult", this.pluginUI.nextEntryContextMenuItem);
+            PluginBase.MainForm.RegisterShortcutItem("ResultsPanel.ShowPrevResult", this.pluginUI.previousEntryContextMenuItem);
+            PluginBase.MainForm.RegisterShortcutItem("ResultsPanel.ClearResults", this.pluginUI.clearEntriesContextMenuItem);
+            PluginBase.MainForm.RegisterShortcutItem("ResultsPanel.ClearIgnoredEntries", this.pluginUI.clearIgnoredEntriesContextMenuItem);
             PluginBase.MainForm.RegisterShortcutItem("ViewMenu.ShowResults", viewItem);
             viewMenu.DropDownItems.Add(viewItem);
         }
@@ -252,17 +253,17 @@ namespace ResultsPanel
             this.pluginUI.Text = TextHelper.GetString("Title.PluginPanel");
             this.pluginPanel = PluginBase.MainForm.CreateDockablePanel(this.pluginUI, this.pluginGuid, this.pluginImage, DockState.DockBottomAutoHide);
         }
-
+        
         /// <summary>
         /// Opens the plugin panel if closed
         /// </summary>
-        public void OpenPanel(Object sender, System.EventArgs e)
+        public void OpenPanel(Object sender, EventArgs e)
         {
             this.pluginPanel.Show();
         }
 
-		#endregion
+        #endregion
 
-	}
-	
+    }
+    
 }

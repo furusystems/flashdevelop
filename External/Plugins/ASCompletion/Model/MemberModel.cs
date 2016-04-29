@@ -4,40 +4,34 @@
 
 using System;
 using System.Collections;
-using System.Collections.Specialized;
 using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Diagnostics;
 using PluginCore;
-using PluginCore.Managers;
-using ASCompletion.Context;
 
 namespace ASCompletion.Model
 {
-	/// <summary>
-	/// Object representation of an Actionscript MemberModel
-	/// </summary>
-	public class MemberModel: ICloneable, IComparable
+    /// <summary>
+    /// Object representation of an Actionscript MemberModel
+    /// </summary>
+    [Serializable]
+    public class MemberModel: ICloneable, IComparable
     {
-		public static String TypedCallbackHLStart = "<[BGCOLOR=#2F90:NORMAL]"; // <- with alpha (0x02)
-		public static String TypedCallbackHLEnd = "[/BGCOLOR]>";
-
+        public static String TypedCallbackHLStart = "<[BGCOLOR=#2F90:NORMAL]"; // <- with alpha (0x02)
+        public static String TypedCallbackHLEnd = "[/BGCOLOR]>";
 
         public FileModel InFile;
         public bool IsPackageLevel;
 
-		public FlagType Flags;
+        public FlagType Flags;
         public Visibility Access;
-		public string Namespace;
-		public string Name;
+        public string Namespace;
+        public string Name;
         public List<MemberModel> Parameters;
-		public string Type;
+        public string Type;
         public string Template;
-		public string Comments;
+        public string Comments;
         public string Value;
-		public int LineFrom;
-		public int LineTo;
+        public int LineFrom;
+        public int LineTo;
         public List<ASMetaData> MetaDatas;
 
         public MemberModel()
@@ -62,16 +56,16 @@ namespace ASCompletion.Model
         }
 
         /// <summary>
-		/// Clone member
-		/// </summary>
-		public Object Clone()
-		{
-			MemberModel copy = new MemberModel();
+        /// Clone member
+        /// </summary>
+        public Object Clone()
+        {
+            MemberModel copy = new MemberModel();
             copy.Name = Name;
             copy.Template = Template;
-			copy.Flags = Flags;
+            copy.Flags = Flags;
             copy.Access = Access;
-			copy.Namespace = Namespace;
+            copy.Namespace = Namespace;
             copy.InFile = InFile;
             copy.IsPackageLevel = IsPackageLevel;
             if (Parameters != null)
@@ -80,98 +74,98 @@ namespace ASCompletion.Model
                 foreach (MemberModel param in Parameters)
                     copy.Parameters.Add(param.Clone() as MemberModel);
             }
-			copy.Type = Type;
-			copy.Comments = Comments;
+            copy.Type = Type;
+            copy.Comments = Comments;
             copy.Value = Value;
             copy.LineFrom = LineFrom;
             copy.LineTo = LineTo;
-			return copy;
-		}
-		
-		public override string ToString()
-		{
-			string res = FullName;
-			string type = (Type != null && Type.Length > 0) ? FormatType(Type) : null;
-			string comment = "";
-			if ((Flags & FlagType.Function) > 0)
-			{
-				string functDecl = "(" + ParametersString(true) + ")";
-
-				if ((Flags & FlagType.Variable) > 0 || (Flags & FlagType.Getter) > 0)
-				{
-					if (type != null && type.Length > 0)
-						functDecl += ":" + type;
-
-					res += " : Function" + TypedCallbackHLStart + functDecl + TypedCallbackHLEnd;
-					return res;
-				}
-
-				res += " " + functDecl;
-			}
-			else if ((Flags & (FlagType.Setter | FlagType.Getter)) > 0)
-			{
-				if ((Flags & FlagType.Setter) > 0)
-				{
-					if (Parameters != null && Parameters.Count > 0 && Parameters[0].Type != null && Parameters[0].Type.Length > 0)
-						return res + " : " + FormatType(Parameters[0].Type);
-				}
-			}
-
-			if ((Flags & FlagType.Constructor) > 0)
-				return res;
-			
-			if (type != null && type.Length > 0)
-				res += " : " + type + comment;
-
-            return res;
-		}
-
-		public string ToDeclarationString()
-		{
-			return ToDeclarationString(true, false);
-		}
-        public string ToDeclarationString(bool wrapWithSpaces, bool concatValue)
+            return copy;
+        }
+        
+        public override string ToString()
         {
-			string colon = wrapWithSpaces ? " : " : ":";
             string res = FullName;
-			string type = null;
-			string comment = "";
-            if ((Flags & (FlagType.Function | FlagType.Setter | FlagType.Getter)) > 0)
+            string type = !string.IsNullOrEmpty(Type) ? FormatType(Type) : null;
+            string comment = "";
+            if ((Flags & FlagType.Function) > 0)
             {
-				if ((Flags & FlagType.Function) > 0 && (Flags & FlagType.Getter | Flags & FlagType.Variable) > 0)
-				{
-					if ((Flags & FlagType.Variable) == 0)
-						res += "()";
+                string functDecl = "(" + ParametersString(true) + ")";
 
-					type = "Function";
-					if (Parameters != null && Parameters.Count > 0)
-					{
-						comment = "/*(" + ParametersString(true) + ")";
-						if (Type != null && Type.Length > 0)
-							comment += colon + FormatType(Type);
-						comment += "*/";
-					}
-				}
-				else
-				{
-					res += "(" + ParametersString(true) + ")";
-				}
+                if ((Flags & FlagType.Variable) > 0 || (Flags & FlagType.Getter) > 0)
+                {
+                    if (!string.IsNullOrEmpty(type))
+                        functDecl += ":" + type;
+
+                    res += " : Function" + TypedCallbackHLStart + functDecl + TypedCallbackHLEnd;
+                    return res;
+                }
+
+                res += " " + functDecl;
+            }
+            else if ((Flags & (FlagType.Setter | FlagType.Getter)) > 0)
+            {
+                if ((Flags & FlagType.Setter) > 0)
+                {
+                    if (Parameters != null && Parameters.Count > 0 && !string.IsNullOrEmpty(Parameters[0].Type))
+                        return res + " : " + FormatType(Parameters[0].Type);
+                }
             }
 
-			if ((type == null || type.Length == 0) && (Type != null && Type.Length > 0))
-				type = FormatType(Type);
+            if ((Flags & FlagType.Constructor) > 0)
+                return res;
+            
+            if (!string.IsNullOrEmpty(type))
+                res += " : " + type + comment;
 
-			if ((Flags & FlagType.Constructor) > 0)
-				return res;
-			else if (type != null && type.Length > 0)
-				res += colon + type;
+            return res;
+        }
+
+        public string ToDeclarationString()
+        {
+            return ToDeclarationString(true, false);
+        }
+        public string ToDeclarationString(bool wrapWithSpaces, bool concatValue)
+        {
+            string colon = wrapWithSpaces ? " : " : ":";
+            string res = FullName;
+            string type = null;
+            string comment = "";
+            if ((Flags & (FlagType.Function | FlagType.Setter | FlagType.Getter)) > 0)
+            {
+                if ((Flags & FlagType.Function) > 0 && (Flags & FlagType.Getter | Flags & FlagType.Variable) > 0)
+                {
+                    if ((Flags & FlagType.Variable) == 0)
+                        res += "()";
+
+                    type = "Function";
+                    if (Parameters != null && Parameters.Count > 0)
+                    {
+                        comment = "/*(" + ParametersString(true) + ")";
+                        if (!string.IsNullOrEmpty(Type))
+                            comment += colon + FormatType(Type);
+                        comment += "*/";
+                    }
+                }
+                else
+                {
+                    res += "(" + ParametersString(true) + ")";
+                }
+            }
+
+            if (string.IsNullOrEmpty(type) && !string.IsNullOrEmpty(Type))
+                type = FormatType(Type);
+
+            if ((Flags & FlagType.Constructor) > 0)
+                return res;
+            else if (!string.IsNullOrEmpty(type))
+                res += colon + type;
 
             res += comment;
 
-			if (concatValue && Value != null)
-				res += (wrapWithSpaces ? " = " : "=") + Value.Trim();
+            if (concatValue && Value != null)
+                res += (wrapWithSpaces ? " = " : "=") + Value.Trim();
 
-			return res;
+            return res;
         }
 
         public string ParametersString()
@@ -190,115 +184,116 @@ namespace ASCompletion.Model
                     if (addSep) res += ", ";
                     else addSep = true;
 
-					res += param.ToDeclarationString(false, true);
-					/*
+                    res += param.ToDeclarationString(false, true);
+                    /*
                     res += param.Name;
                     if (param.Type != null && param.Type.Length > 0)
                         res += ":" + (formated ? FormatType(param.Type) : param.Type);
                     if (param.Value != null)
                         res += " = " + param.Value.Trim();
-					*/
+                    */
                 }
             }
             return res;
         }
-		
-		public override bool Equals(object obj)
-		{
-			if (!(obj is MemberModel)) 
-				return false;
+        
+        public override bool Equals(object obj)
+        {
+            if (!(obj is MemberModel)) 
+                return false;
             MemberModel to = (MemberModel)obj;
-			return Name == to.Name && Flags == to.Flags;
-		}
-		
-		public override int GetHashCode() 
-		{
-			return (Name+Flags).GetHashCode();
-		}
-		
-		public int CompareTo(object obj)
-		{
-			if (!(obj is MemberModel))
-				throw new InvalidCastException("This object is not of type MemberModel");
+            return Name == to.Name && Flags == to.Flags;
+        }
+        
+        public override int GetHashCode() 
+        {
+            return (Name+Flags).GetHashCode();
+        }
+        
+        public int CompareTo(object obj)
+        {
+            if (!(obj is MemberModel))
+                throw new InvalidCastException("This object is not of type MemberModel");
             MemberModel to = (MemberModel)obj;
             if (Name == to.Name) return (int)Flags - (int)to.Flags;
             else return string.Compare(Name, to.Name, false);
-		}
+        }
 
-		static public string FormatType(string type)
-		{
-			return FormatType(type, false);
-		}
+        static public string FormatType(string type)
+        {
+            return FormatType(type, false);
+        }
         static public string FormatType(string type, bool allowBBCode)
         {
-            if (type == null || type.Length == 0)
+            if (string.IsNullOrEmpty(type))
                 return null;
             int p = type.IndexOf('@');
-			if (p > 0)
-			{
-				string bbCodeOpen = allowBBCode ? "[BGCOLOR=#EEE:SUBTRACT]" : "";
-				string bbCodeClose = allowBBCode ? "[/BGCOLOR]" : "";
+            if (p > 0)
+            {
+                string bbCodeOpen = allowBBCode ? "[BGCOLOR=#EEE:SUBTRACT]" : "";
+                string bbCodeClose = allowBBCode ? "[/BGCOLOR]" : "";
 
-				if (type.Substring(0, p) == "Array")
-					return type.Substring(0, p) + bbCodeOpen + "/*" + type.Substring(p + 1) + "*/" + bbCodeClose;
-				else if (type.IndexOf("<T>") > 0)
-                    return type.Substring(0, type.IndexOf("<T>")) + bbCodeOpen + "<" + type.Substring(p + 1) + ">" + bbCodeClose;
+                if (type.Substring(0, p) == "Array")
+                    return type.Substring(0, p) + bbCodeOpen + "/*" + type.Substring(p + 1) + "*/" + bbCodeClose;
+                else if (type.IndexOfOrdinal("<T>") > 0)
+                    return type.Substring(0, type.IndexOfOrdinal("<T>")) + bbCodeOpen + "<" + type.Substring(p + 1) + ">" + bbCodeClose;
                 else
-					return bbCodeOpen + "/*" + type.Substring(p + 1) + "*/" + bbCodeClose + type.Substring(0, p);
-			}
-			return type;
+                    return bbCodeOpen + "/*" + type.Substring(p + 1) + "*/" + bbCodeClose + type.Substring(0, p);
+            }
+            return type;
         }
-	}
-	
-	/// <summary>
-	/// Strong-typed MemberModel list with special merging/searching methods
-	/// </summary>
-	public class MemberList: IEnumerable
-	{
-		private List<MemberModel> items;
-		private bool Sorted;
-		
-		public IEnumerator GetEnumerator()
-		{
-			return items.GetEnumerator();
-		}
-		
-		public List<MemberModel> Items 
-		{
-			get {
-				return items;
-			}
-		}
+    }
+    
+    /// <summary>
+    /// Strong-typed MemberModel list with special merging/searching methods
+    /// </summary>
+    [Serializable]
+    public class MemberList: IEnumerable
+    {
+        private List<MemberModel> items;
+        private bool Sorted;
+        
+        public IEnumerator GetEnumerator()
+        {
+            return items.GetEnumerator();
+        }
+        
+        public List<MemberModel> Items 
+        {
+            get {
+                return items;
+            }
+        }
 
-		public int Count
-		{
-			get {
-				return items.Count;
-			}
-		}
-		
-		public MemberList()
-		{
+        public int Count
+        {
+            get {
+                return items.Count;
+            }
+        }
+        
+        public MemberList()
+        {
             items = new List<MemberModel>();
-		}
-		
-		public MemberModel this[int index]
-		{
-			get {
-				return items[index];
-			}
-			set {
-				Sorted = false;
-				items[index] = value;
-			}
-		}
-		
-		public int Add(MemberModel value)
-		{
-			Sorted = false;
+        }
+        
+        public MemberModel this[int index]
+        {
+            get {
+                return items[index];
+            }
+            set {
+                Sorted = false;
+                items[index] = value;
+            }
+        }
+        
+        public int Add(MemberModel value)
+        {
+            Sorted = false;
             items.Add(value);
-			return items.Count;
-		}
+            return items.Count;
+        }
 
         public int Add(MemberList list)
         {
@@ -308,15 +303,15 @@ namespace ASCompletion.Model
         }
 
         public void Insert(int index, MemberModel value)
-		{
-			Sorted = false;
-			items.Insert(index, value);
-		}
-		
-		public void Remove(MemberModel value)
-		{
-			items.Remove(value);
-		}
+        {
+            Sorted = false;
+            items.Insert(index, value);
+        }
+        
+        public void Remove(MemberModel value)
+        {
+            items.Remove(value);
+        }
 
         public void Remove(string name)
         {
@@ -325,10 +320,10 @@ namespace ASCompletion.Model
         }
 
         public void Clear()
-		{
-			Sorted = true;
-			items.Clear();
-		}
+        {
+            Sorted = true;
+            items.Clear();
+        }
 
         /// <summary>
         /// Return the first MemberModel instance match in the MemberList
@@ -355,18 +350,18 @@ namespace ASCompletion.Model
         /// <returns>All matches</returns>
         public MemberList MultipleSearch(string name, FlagType mask, Visibility acc) 
         {
-			MemberList result = new MemberList();
-			foreach (MemberModel m in items)
+            MemberList result = new MemberList();
+            foreach (MemberModel m in items)
                 if (((m.Flags & mask) == mask)
                     && (acc == 0 || (m.Access & acc) > 0)
                     && m.Name == name) result.Add(m);
-			return result;
-		}
-		
-		public void Sort()
-		{
+            return result;
+        }
+        
+        public void Sort()
+        {
             this.Sort(null);
-		}
+        }
 
         public void Sort(IComparer<MemberModel> comparer)
         {
@@ -377,24 +372,24 @@ namespace ASCompletion.Model
             }
         }
 
-		/// <summary>
-		/// Merge one item into the list
-		/// </summary>
-		/// <param name="item">Item to merge</param>
-		public void Merge(MemberModel item)
-		{
+        /// <summary>
+        /// Merge one item into the list
+        /// </summary>
+        /// <param name="item">Item to merge</param>
+        public void Merge(MemberModel item)
+        {
             if (item == null) return;
-			MemberList list = new MemberList();
-			list.Add(item);
-			Merge(list);
-		}
-		
-		/// <summary>
-		/// Merge SORTED lists without duplicate values
-		/// </summary>
-		/// <param name="list">Items to merge</param>
-		public void Merge(MemberList list)
-		{
+            MemberList list = new MemberList();
+            list.Add(item);
+            Merge(list);
+        }
+        
+        /// <summary>
+        /// Merge SORTED lists without duplicate values
+        /// </summary>
+        /// <param name="list">Items to merge</param>
+        public void Merge(MemberList list)
+        {
             if (list == null) return;
             int index = 0;
             bool added;
@@ -418,7 +413,7 @@ namespace ASCompletion.Model
                 }
                 if (!added) items.Add(m);
             }
-		}
+        }
 
         /// <summary>
         /// Merge ORDERED (by line) lists
@@ -447,36 +442,36 @@ namespace ASCompletion.Model
         }
 
         /// <summary>
-		/// Merge selected items from the SORTED lists without duplicate values
-		/// </summary>
-		/// <param name="list">Items to merge</param>
-		public void Merge(MemberList list, FlagType mask, Visibility acc)
-		{
+        /// Merge selected items from the SORTED lists without duplicate values
+        /// </summary>
+        /// <param name="list">Items to merge</param>
+        public void Merge(MemberList list, FlagType mask, Visibility acc)
+        {
             if (list == null) return;
-			int index = 0;
-			bool added;
-			foreach (MemberModel m in list)
-			if ((m.Flags & mask) == mask && (m.Access & acc) > 0)
-			{
-				added = false;
-				while (index < items.Count)
-				{
-					if (m.Name.CompareTo(items[index].Name) <= 0)
-					{
+            int index = 0;
+            bool added;
+            foreach (MemberModel m in list)
+            if ((m.Flags & mask) == mask && (m.Access & acc) > 0)
+            {
+                added = false;
+                while (index < items.Count)
+                {
+                    if (m.Name.CompareTo(items[index].Name) <= 0)
+                    {
                         if (m.Name != items[index].Name) items.Insert(index, m);
                         else if ((items[index].Flags & FlagType.Setter) > 0)
                         {
                             items.RemoveAt(index);
                             items.Insert(index, m);
                         }
-						added = true;
-						break;
-					}
-					index++;
-				}
-				if (!added) items.Add(m);
-			}
-		}
+                        added = true;
+                        break;
+                    }
+                    index++;
+                }
+                if (!added) items.Add(m);
+            }
+        }
 
         public void RemoveAllWithFlag(FlagType flag)
         {
@@ -487,7 +482,7 @@ namespace ASCompletion.Model
         {
             items.RemoveAll(m => (m.Flags & flag) == 0);
         }
-	}
+    }
 
     public class ByKindMemberComparer : IComparer<MemberModel>
     {
@@ -543,5 +538,99 @@ namespace ASCompletion.Model
             return a.LineFrom - b.LineFrom;
         }
 
+    }
+
+    /// <summary>
+    /// Compare members based on import name
+    /// </summary>
+    public class CaseSensitiveImportComparer : IComparer<MemberModel>
+    {
+        static Int32 GetPackageTypeSeparation(string import)
+        {
+            var dot = import.IndexOf('.');
+            var lastDot = -1;
+            var max = import.Length - 1;
+            while (dot > 0 && dot < max)
+            {
+                if (Char.IsUpper(import[dot + 1]))
+                    return dot;
+                lastDot = dot;
+                dot = import.IndexOf('.', dot + 1);
+            }
+            if (dot < 0 || dot >= max) return lastDot;
+            else if (dot == 0) return -1;
+            else return dot;
+        }
+
+        public static Int32 CompareImports(string import1, string import2)
+        {
+            IComparer cmp = StringComparer.Ordinal;
+            var d1 = GetPackageTypeSeparation(import1);
+            var d2 = GetPackageTypeSeparation(import2);
+            // one or both imports do not have a package
+            if (d1 < 0) 
+            {
+                if (d2 > 0) return -1;
+                else return cmp.Compare(import1, import2);
+            }
+            else if (d2 < 0) 
+            {
+                if (d1 > 0) return 1;
+                else return cmp.Compare(import1, import2);
+            }
+            // compare package
+            var pkg1 = import1.Substring(0, d1);
+            var pkg2 = import2.Substring(0, d2);
+            var res = cmp.Compare(pkg1, pkg2);
+            if (res != 0) return res;
+            // compare type
+            var tp1 = import1.Substring(d1 + 1);
+            var tp2 = import2.Substring(d2 + 1);
+            res = cmp.Compare(tp1, tp2);
+            return res;
+        }
+
+#if DEBUG 
+        static void Assert(int res, int expected)
+        {
+            System.Diagnostics.Debug.Assert(res == expected, res + " was not expected " + expected);
+        }
+
+        static CaseSensitiveImportComparer()
+        {
+            // poor man's unit tests
+            Assert(GetPackageTypeSeparation("a.b.C"), 3);
+            Assert(GetPackageTypeSeparation("a.b.c"), 3);
+            Assert(GetPackageTypeSeparation("a.b.C.D"), 3);
+            Assert(GetPackageTypeSeparation("a"), -1);
+            Assert(GetPackageTypeSeparation(".a"), -1);
+            Assert(GetPackageTypeSeparation("a."), -1);
+            Assert(GetPackageTypeSeparation("a.b.c."), 3);
+
+            Assert(CompareImports("a", "A"), 32);
+            Assert(CompareImports("a", "b"), -1);
+            Assert(CompareImports("b", "a"), 1);
+            Assert(CompareImports("a", "a"), 0);
+            Assert(CompareImports("a.A", "b"), 1);
+            Assert(CompareImports("a", "b.B"), -1);
+            Assert(CompareImports("a.A", "b.A"), -1);
+            Assert(CompareImports("b.A", "a.A"), 1);
+            Assert(CompareImports("a.A", "a.A"), 0);
+            Assert(CompareImports("a.A", "a.B"), -1);
+            Assert(CompareImports("b.A", "a.A"), 1);
+            Assert(CompareImports("a.A", "a.a"), -32);
+            Assert(CompareImports("a.MathReal", "a.Mathematics"), -19);
+        }
+#endif
+
+        public Int32 Compare(string import1, string import2)
+        {
+            return CompareImports(import1, import2);
+        }
+
+        public Int32 Compare(MemberModel item1, MemberModel item2)
+        {
+            return CompareImports(item1.Type, item2.Type);
+        }
     }
 }

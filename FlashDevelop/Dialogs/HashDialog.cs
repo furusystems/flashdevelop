@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Data;
 using System.Text;
 using System.Drawing;
 using System.Collections.Generic;
@@ -7,6 +6,7 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using PluginCore.Localization;
 using PluginCore.Utilities;
+using PluginCore.Helpers;
 
 namespace FlashDevelop.Dialogs
 {
@@ -31,6 +31,7 @@ namespace FlashDevelop.Dialogs
             this.resultHashText = String.Empty;
             this.InitializeComponent();
             this.ApplyLocalizedTexts();
+            ScaleHelper.AdjustForHighDPI(this);
         }
 
         #region Windows Form Designer Generated Code

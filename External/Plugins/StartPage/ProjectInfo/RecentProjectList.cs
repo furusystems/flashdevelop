@@ -1,7 +1,6 @@
 using System;
-using System.IO;
-using System.Text;
 using System.Collections.Generic;
+using System.IO;
 using System.Xml.Serialization;
 
 namespace StartPage.ProjectInfo
@@ -12,7 +11,7 @@ namespace StartPage.ProjectInfo
 
         public RecentProjectList()
         {
-            this.xmlSerializer = new XmlSerializer(this.GetType());
+            this.xmlSerializer = XmlSerializer.FromTypes(new[]{this.GetType()})[0];
         }
         public RecentProjectList(List<String> recentProjects)
         {

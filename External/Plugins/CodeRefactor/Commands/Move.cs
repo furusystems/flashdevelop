@@ -1,18 +1,20 @@
 ﻿using System;
-using System.IO;
-using System.Windows.Forms;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
 using ASCompletion.Completion;
 using ASCompletion.Context;
 using ASCompletion.Model;
 using CodeRefactor.Provider;
+using PluginCore;
 using PluginCore.Controls;
 using PluginCore.FRService;
+using PluginCore.Helpers;
 using PluginCore.Localization;
+using PluginCore.Managers;
 using ProjectManager.Projects;
 using ScintillaNet;
-using PluginCore;
-using PluginCore.Helpers;
 
 /* Considerations and known problems: 
  *  A. When moving a model that makes use of other models in the old package there will be a problem
@@ -34,15 +36,14 @@ namespace CodeRefactor.Commands
 {
     class Move : RefactorCommand<IDictionary<string, List<SearchMatch>>>
     {
-
         public Dictionary<string, string> OldPathToNewPath;
         public bool OutputResults;
-        private bool renaming;
+        private readonly bool renaming;
+        private readonly bool updatePackages;
         private List<MoveTargetHelper> targets;
         private List<string> filesToReopen;
         private int currentTargetIndex;
         private ASResult currentTargetResult;
-
         private bool targetsOutsideClasspath;
 
         #region Constructors
@@ -54,15 +55,32 @@ namespace CodeRefactor.Commands
         {
         }
 
+        /// <summary>
+        /// A new Move refactoring command.
+        /// </summary>
+        /// <param name="outputResults">If true, will send the found results to the trace log and results panel</param>
         public Move(Dictionary<string, string> oldPathToNewPath, bool outputResults) : this(oldPathToNewPath, outputResults, false)
         {
         }
 
-        public Move(Dictionary<string, string> oldPathToNewPath, bool outputResults, bool renaming)
+        /// <summary>
+        /// A new Move refactoring command.
+        /// </summary>
+        /// <param name="outputResults">If true, will send the found results to the trace log and results panel</param>
+        public Move(Dictionary<string, string> oldPathToNewPath, bool outputResults, bool renaming) : this(oldPathToNewPath, outputResults, renaming, false)
+        {
+        }
+
+        /// <summary>
+        /// A new Move refactoring command.
+        /// </summary>
+        /// <param name="outputResults">If true, will send the found results to the trace log and results panel</param>
+        public Move(Dictionary<string, string> oldPathToNewPath, bool outputResults, bool renaming, bool updatePackages)
         {
             OldPathToNewPath = oldPathToNewPath;
             OutputResults = outputResults;
             this.renaming = renaming;
+            this.updatePackages = updatePackages;
             Results = new Dictionary<string, List<SearchMatch>>();
         }
 
@@ -80,12 +98,17 @@ namespace CodeRefactor.Commands
             RegisterDocumentHelper(AssociatedDocumentHelper);
 
             CreateListOfMoveTargets();
-
+            DialogResult dialogResult;
             if (targetsOutsideClasspath)
             {
-                msg = TextHelper.GetString("Info.MovingOutsideClasspath");
-                title = TextHelper.GetString("FlashDevelop.Title.WarningDialog");
-                if (MessageBox.Show(msg, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                if (updatePackages) dialogResult = DialogResult.Yes;
+                else
+                {
+                    msg = TextHelper.GetString("Info.MovingOutsideClasspath");
+                    title = TextHelper.GetString("FlashDevelop.Title.WarningDialog");
+                    dialogResult = MessageBox.Show(msg, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                }
+                if (dialogResult == DialogResult.Yes)
                 {
                     MoveTargets();
                     ReopenInitialFiles();
@@ -93,22 +116,31 @@ namespace CodeRefactor.Commands
                 FireOnRefactorComplete();
                 return;
             }
-
-            if (renaming)
-            {
-                msg = TextHelper.GetString("Info.RenamingDirectory");
-                foreach (string path in OldPathToNewPath.Keys)
-                {
-                    title = string.Format(TextHelper.GetString("Title.RenameDialog"), Path.GetFileName(path));
-                    break;
-                }
-            }
+            if (updatePackages) dialogResult = DialogResult.Yes;
             else
             {
-                msg = TextHelper.GetString("Info.MovingFile");
-                title = TextHelper.GetString("Title.MoveDialog");
+                if (renaming)
+                {
+                    msg = TextHelper.GetString("Info.RenamingDirectory");
+                    foreach (string path in OldPathToNewPath.Keys)
+                    {
+                        title = string.Format(TextHelper.GetString("Title.RenameDialog"), Path.GetFileName(path));
+                        break;
+                    }
+                }
+                else
+                {
+                    msg = TextHelper.GetString("Info.MovingFile");
+                    title = TextHelper.GetString("Title.MoveDialog");
+                }
+                dialogResult = MessageBox.Show(msg, title, MessageBoxButtons.YesNoCancel);
             }
-            if (targets.Count > 0 && MessageBox.Show(msg, title, MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (dialogResult == DialogResult.Cancel)
+            {
+                FireOnRefactorComplete();
+                return;
+            }
+            if (targets.Count > 0 && dialogResult == DialogResult.Yes)
             {
                 // We must keep the original files for validating references
                 CopyTargets();
@@ -142,11 +174,11 @@ namespace CodeRefactor.Commands
             {
                 string oldPath = item.Key;
                 string newPath = item.Value;
-                ITabbedDocument doc;
                 if (File.Exists(oldPath))
                 {
                     newPath = Path.Combine(newPath, Path.GetFileName(oldPath));
 
+                    ITabbedDocument doc;
                     if (AssociatedDocumentHelper.InitiallyOpenedFiles.TryGetValue(oldPath, out doc))
                     {
                         doc.Save();
@@ -204,41 +236,22 @@ namespace CodeRefactor.Commands
             string newPackage = result.NewPackage = project.GetAbsolutePath(Path.GetDirectoryName(newPath));
             if (!string.IsNullOrEmpty(newPackage))
             {
-                // NOTE: Could be simplified in .NET 3.5 with LINQ .Concat.Select.Distinct
-                var visited = new Dictionary<string, byte>();
-                foreach (string sourcePath in project.SourcePaths)
+                var basePaths = project.SourcePaths.Length == 0 ? new[] {Path.GetDirectoryName(project.ProjectPath)} : project.SourcePaths;
+                var lookupPaths = basePaths.
+                    Concat(ProjectManager.PluginMain.Settings.GetGlobalClasspaths(project.Language)).
+                    Select(project.GetAbsolutePath).Distinct();
+
+                foreach (string path in lookupPaths)
                 {
-                    string path = project.GetAbsolutePath(sourcePath);
-                    if (visited.ContainsKey(path)) continue;
-                    visited[path] = 1;
                     if (path == newPackage)
                     {
                         newPackage = "";
                         break;
                     }
-                    else if (newPackage.StartsWith(path))
+                    if (newPackage.StartsWithOrdinal(path))
                     {
                         newPackage = newPackage.Substring((path + "\\").Length).Replace("\\", ".");
                         break;
-                    }
-                }
-                if (result.NewPackage == newPackage)
-                {
-                    foreach (string globalPath in ProjectManager.PluginMain.Settings.GetGlobalClasspaths(project.Language))
-                    {
-                        string path = project.GetAbsolutePath(globalPath);
-                        if (visited.ContainsKey(path)) continue;
-                        visited[path] = 1;
-                        if (path == newPackage)
-                        {
-                            newPackage = "";
-                            break;
-                        }
-                        else if (newPackage.StartsWith(path))
-                        {
-                            newPackage = newPackage.Substring((path + "\\").Length).Replace("\\", ".");
-                            break;
-                        }
                     }
                 }
             }
@@ -333,14 +346,14 @@ namespace CodeRefactor.Commands
             var fileMatches = new List<string>();
             foreach (var item in AssociatedDocumentHelper.InitiallyOpenedFiles)
             {
-                if (item.Key.StartsWith(oldPath))
+                if (item.Key.StartsWithOrdinal(oldPath))
                 {
                     item.Value.Save();
                     item.Value.Close();
                     filesToReopen.Add(item.Key.Replace(oldPath, newPath));
                     fileMatches.Add(item.Key);
                 }
-                else if (item.Key.StartsWith(newPath))
+                else if (item.Key.StartsWithOrdinal(newPath))
                 {
                     item.Value.Save();
                     item.Value.Close();
@@ -377,7 +390,9 @@ namespace CodeRefactor.Commands
                 oldType = oldType.Trim('.');
                 MessageBar.Locked = true;
                 string newFilePath = currentTarget.NewFilePath;
-                ScintillaControl sci = AssociatedDocumentHelper.LoadDocument(currentTarget.TmpFilePath ?? newFilePath);
+                var doc = AssociatedDocumentHelper.LoadDocument(currentTarget.TmpFilePath ?? newFilePath);
+                ScintillaControl sci = doc.SciControl;
+                search.SourceFile = sci.FileName;
                 List<SearchMatch> matches = search.Matches(sci.Text);
                 string packageReplacement = "package";
                 if (currentTarget.NewPackage != "")
@@ -395,16 +410,23 @@ namespace CodeRefactor.Commands
                     if (!Results.ContainsKey(newFilePath)) Results[newFilePath] = new List<SearchMatch>();
                     Results[newFilePath].AddRange(matches);
                 }
+                else if (sci.ConfigurationLanguage == "haxe")
+                {
+                    // haxe modules don't need to specify a package if it's empty
+                    sci.InsertText(0, packageReplacement + ";\n\n");
+                }
                 //Do we want to open modified files?
                 //if (sci.IsModify) AssociatedDocumentHelper.MarkDocumentToKeep(file);
-                PluginBase.MainForm.CurrentDocument.Save();
+                doc.Save();
                 MessageBar.Locked = false;
                 UserInterfaceManager.ProgressDialog.Show();
                 UserInterfaceManager.ProgressDialog.SetTitle(TextHelper.GetString("Info.FindingReferences"));
                 UserInterfaceManager.ProgressDialog.UpdateStatusMessage(TextHelper.GetString("Info.SearchingFiles"));
                 currentTargetResult = RefactoringHelper.GetRefactorTargetFromFile(oldFileModel.FileName, AssociatedDocumentHelper);
                 if (currentTargetResult != null)
-                    RefactoringHelper.FindTargetInFiles(currentTargetResult, UserInterfaceManager.ProgressDialog.UpdateProgress, FindFinished, true, true);
+                {
+                    RefactoringHelper.FindTargetInFiles(currentTargetResult, UserInterfaceManager.ProgressDialog.UpdateProgress, FindFinished, true, true, true);
+                }
                 else
                 {
                     currentTargetIndex++;
@@ -452,7 +474,7 @@ namespace CodeRefactor.Commands
 
                     // Look for document class changes
                     // Do not use RefactoringHelper to avoid possible dialogs that we don't want
-                    ProjectManager.Projects.Project project = (ProjectManager.Projects.Project)PluginBase.CurrentProject;
+                    Project project = (Project)PluginBase.CurrentProject;
                     string newDocumentClass = null;
                     string searchPattern = project.DefaultSearchFilter;
                     foreach (string pattern in searchPattern.Split(';'))
@@ -473,13 +495,13 @@ namespace CodeRefactor.Commands
                     {
                         string tmpPath = oldPath + "$renaming$";
                         FileHelper.ForceMoveDirectory(oldPath, tmpPath);
-                        PluginCore.Managers.DocumentManager.MoveDocuments(oldPath, tmpPath);
+                        DocumentManager.MoveDocuments(oldPath, tmpPath);
                         oldPath = tmpPath;
                     }
 
                     // Move directory contents to final location
                     FileHelper.ForceMoveDirectory(oldPath, newPath);
-                    PluginCore.Managers.DocumentManager.MoveDocuments(oldPath, newPath);
+                    DocumentManager.MoveDocuments(oldPath, newPath);
 
                     if (!string.IsNullOrEmpty(newDocumentClass))
                     {
@@ -519,6 +541,7 @@ namespace CodeRefactor.Commands
                     entry.Key == currentTarget.NewFilePath) continue;
                 string file = entry.Key;
                 UserInterfaceManager.ProgressDialog.UpdateStatusMessage(TextHelper.GetString("Info.Updating") + " \"" + file + "\"");
+                ITabbedDocument doc;
                 ScintillaControl sci;
                 var actualMatches = new List<SearchMatch>();
                 foreach (SearchMatch match in entry.Value)
@@ -526,14 +549,15 @@ namespace CodeRefactor.Commands
                     // we have to open/reopen the entry's file
                     // there are issues with evaluating the declaration targets with non-open, non-current files
                     // we have to do it each time as the process of checking the declaration source can change the currently open file!
-                    sci = AssociatedDocumentHelper.LoadDocument(file);
+                    sci = AssociatedDocumentHelper.LoadDocument(file).SciControl;
                     // if the search result does point to the member source, store it
                     if (RefactoringHelper.DoesMatchPointToTarget(sci, match, currentTargetResult, this.AssociatedDocumentHelper))
                         actualMatches.Add(match);
                 }
                 if (actualMatches.Count == 0) continue;
                 int currLine = -1;
-                sci = AssociatedDocumentHelper.LoadDocument(file);
+                doc = AssociatedDocumentHelper.LoadDocument(file);
+                sci = doc.SciControl;
                 string directory = Path.GetDirectoryName(file);
                 // Let's check if we need to add the import. Check the considerations at the start of the file
                 // directory != currentTarget.OwnerPath -> renamed owner directory, so both files in the same place
@@ -576,7 +600,7 @@ namespace CodeRefactor.Commands
                 {
                     sci.GotoLine(currLine);
                     ASGenerator.InsertImport(new MemberModel(targetName, newType, FlagType.Import, 0), false);
-                    int newLine = sci.LineFromPosition(sci.Text.IndexOf(newType));
+                    int newLine = sci.LineFromPosition(sci.Text.IndexOfOrdinal(newType));
                     var sm = new SearchMatch();
                     sm.Line = newLine + 1;
                     sm.LineText = sci.GetLine(newLine);
@@ -591,7 +615,7 @@ namespace CodeRefactor.Commands
                 Results[file].AddRange(actualMatches);
                 //Do we want to open modified files?
                 //if (sci.IsModify) AssociatedDocumentHelper.MarkDocumentToKeep(file);
-                PluginBase.MainForm.CurrentDocument.Save();
+                doc.Save();
             }
 
             currentTargetIndex++;

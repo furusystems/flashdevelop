@@ -15,8 +15,8 @@ using PluginCore;
 
 namespace FlashConnect
 {
-	public class PluginMain : IPlugin
-	{
+    public class PluginMain : IPlugin
+    {
         private String pluginName = "FlashConnect";
         private String pluginGuid = "425ae753-fdc2-4fdf-8277-c47c39c2e26b";
         private String pluginHelp = "www.flashdevelop.org/community/";
@@ -24,7 +24,8 @@ namespace FlashConnect
         private String pluginAuth = "FlashDevelop Team";
         private String settingFilename;
         private Settings settingObject;
-		private XmlSocket xmlSocket;
+        private XmlSocket xmlSocket;
+        private Timer pendingSetup;
 
         #region Required Properties
 
@@ -90,8 +91,8 @@ namespace FlashConnect
         #region Required Methods
 
         /// <summary>
-		/// Initializes the plugin
-		/// </summary>
+        /// Initializes the plugin
+        /// </summary>
         public void Initialize()
         {
             this.InitBasics();
@@ -104,21 +105,26 @@ namespace FlashConnect
         /// </summary>
         public void Dispose()
         {
+            if (this.pendingSetup != null)
+            {
+                this.pendingSetup.Stop();
+                this.pendingSetup = null;
+            }
             this.SaveSettings();
         }
 
         /// <summary>
         /// Handles the incoming events
         /// </summary>
-        public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority prority)
+        public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority priority)
         {
             // Nothing to do here..
         }
 
         #endregion
-		
-		#region Custom Methods
-        
+
+        #region Custom Methods
+
         // Response messages and errors
         private readonly Byte[] RESULT_INVALID = Encoding.Default.GetBytes("<flashconnect status=\"1\"/>\0");
         private readonly Byte[] RESULT_NOTFOUND = Encoding.Default.GetBytes("<flashconnect status=\"2\"/>\0");
@@ -140,58 +146,66 @@ namespace FlashConnect
         /// </summary> 
         private void SetupSocket()
         {
-            if (this.settingObject.Enabled && !SingleInstanceApp.AlreadyExists)
+            this.pendingSetup = new Timer();
+            this.pendingSetup.Interval = 5000;
+            this.pendingSetup.Tick += (sender, e) =>
             {
-                this.xmlSocket = new XmlSocket(this.settingObject.Host, this.settingObject.Port);
-                this.xmlSocket.XmlReceived += new XmlReceivedEventHandler(this.HandleXml);
-            }
+                this.pendingSetup.Stop();
+                this.pendingSetup = null;
+                if (this.settingObject.Enabled && !SingleInstanceApp.AlreadyExists)
+                {
+                    this.xmlSocket = new XmlSocket(this.settingObject.Host, this.settingObject.Port);
+                    this.xmlSocket.XmlReceived += new XmlReceivedEventHandler(this.HandleXml);
+                }
+            };
+            this.pendingSetup.Start();
         }
-		
-		/// <summary>
-		/// Handles the incoming xml message
-		/// </summary>
-		public void HandleXml(Object sender, XmlReceivedEventArgs e)
-		{
+
+        /// <summary>
+        /// Handles the incoming xml message
+        /// </summary>
+        public void HandleXml(Object sender, XmlReceivedEventArgs e)
+        {
             if (PluginBase.MainForm.MenuStrip.InvokeRequired) PluginBase.MainForm.MenuStrip.BeginInvoke((MethodInvoker)delegate
-            {
-                try
                 {
-                    XmlDocument message = e.XmlDocument;
-                    XmlNode mainNode = message.FirstChild;
-                    for (Int32 i = 0; i < mainNode.ChildNodes.Count; i++)
+                    try
                     {
-                        XmlNode cmdNode = mainNode.ChildNodes[i];
-                        if (XmlHelper.HasAttribute(cmdNode, "cmd"))
+                        XmlDocument message = e.XmlDocument;
+                        XmlNode mainNode = message.FirstChild;
+                        for (Int32 i = 0; i < mainNode.ChildNodes.Count; i++)
                         {
-                            String cmd = XmlHelper.GetAttribute(cmdNode, "cmd");
-                            switch (cmd)
+                            XmlNode cmdNode = mainNode.ChildNodes[i];
+                            if (XmlHelper.HasAttribute(cmdNode, "cmd"))
                             {
-                                case "call":
-                                    this.HandleCallMsg(cmdNode, e.Socket);
-                                    break;
-                                case "trace":
-                                    this.HandleTraceMsg(cmdNode, e.Socket);
-                                    break;
-                                case "notify":
-                                    this.HandleNotifyMsg(cmdNode, e.Socket);
-                                    break;
-                                case "return":
-                                    this.HandleReturnMsg(cmdNode, e.Socket);
-                                    break;
-                                default:
-                                    ErrorManager.ShowError(INVALID_MSG);
-                                    break;
+                                String cmd = XmlHelper.GetAttribute(cmdNode, "cmd");
+                                switch (cmd)
+                                {
+                                    case "call":
+                                        this.HandleCallMsg(cmdNode, e.Socket);
+                                        break;
+                                    case "trace":
+                                        this.HandleTraceMsg(cmdNode, e.Socket);
+                                        break;
+                                    case "notify":
+                                        this.HandleNotifyMsg(cmdNode, e.Socket);
+                                        break;
+                                    case "return":
+                                        this.HandleReturnMsg(cmdNode, e.Socket);
+                                        break;
+                                    default:
+                                        ErrorManager.ShowError(INVALID_MSG);
+                                        break;
+                                }
                             }
+                            else ErrorManager.ShowError(INVALID_MSG);
                         }
-                        else ErrorManager.ShowError(INVALID_MSG);
                     }
-                }
-                catch (Exception ex)
-                {
-                    ErrorManager.ShowError(ex);
-                }
-            });
-		}
+                    catch (Exception ex)
+                    {
+                        ErrorManager.ShowError(ex);
+                    }
+                });
+        }
 
         /// <summary>
         /// Handles the call message
@@ -213,64 +227,64 @@ namespace FlashConnect
             }
         }
 
-		/// <summary>
-		/// Handles the trace message
-		/// </summary>
-		public void HandleTraceMsg(XmlNode msgNode, Socket client)
-		{
-			try 
-			{
+        /// <summary>
+        /// Handles the trace message
+        /// </summary>
+        public void HandleTraceMsg(XmlNode msgNode, Socket client)
+        {
+            try
+            {
                 String message = HttpUtility.UrlDecode(XmlHelper.GetValue(msgNode));
                 Int32 state = Convert.ToInt32(XmlHelper.GetAttribute(msgNode, "state"));
-				TraceManager.Add(message, state);
-			} 
-			catch
-			{
-				client.Send(RESULT_INVALID);
-			}
-		}
-		
-		/// <summary>
-		/// Handles the notify message
-		/// </summary>
-		public void HandleNotifyMsg(XmlNode msgNode, Socket client)
-		{
+                TraceManager.Add(message, state);
+            }
+            catch
+            {
+                client.Send(RESULT_INVALID);
+            }
+        }
+
+        /// <summary>
+        /// Handles the notify message
+        /// </summary>
+        public void HandleNotifyMsg(XmlNode msgNode, Socket client)
+        {
             String message;
             String guid;
             IPlugin plugin;
-			try 
-			{
+            try
+            {
                 message = HttpUtility.UrlDecode(XmlHelper.GetValue(msgNode));
-				guid = XmlHelper.GetAttribute(msgNode, "guid");
-				plugin = PluginBase.MainForm.FindPlugin(guid);
-				if (plugin != null)
-				{
+                guid = XmlHelper.GetAttribute(msgNode, "guid");
+                plugin = PluginBase.MainForm.FindPlugin(guid);
+                if (plugin != null)
+                {
                     DataEvent de = new DataEvent(EventType.Command, "FlashConnect", message);
                     plugin.HandleEvent(client, de, HandlingPriority.High);
-				}
-				else client.Send(RESULT_NOTFOUND);
-			} 
-			catch
-			{
-				client.Send(RESULT_INVALID);
-			}
-		}
-		
-		/// <summary>
-		/// Handles the return message
-		/// </summary>
-		public void HandleReturnMsg(XmlNode msgNode, Socket client)
-		{
-			try 
-			{
-				Byte[] data = Encoding.ASCII.GetBytes(msgNode.InnerXml + "\0");
-				client.Send(data);
-			} 
-			catch
-			{
-				client.Send(RESULT_INVALID);
-			}
-		}
+                }
+                else client.Send(RESULT_NOTFOUND);
+            }
+            catch
+            {
+                client.Send(RESULT_INVALID);
+            }
+        }
+
+        /// <summary>
+        /// Handles the return message
+        /// </summary>
+        public void HandleReturnMsg(XmlNode msgNode, Socket client)
+        {
+            try
+            {
+                Byte[] data = Encoding.ASCII.GetBytes(msgNode.InnerXml + "\0");
+                client.Send(data);
+            }
+            catch
+            {
+                client.Send(RESULT_INVALID);
+            }
+        }
 
         /// <summary>
         /// Loads the plugin settings
@@ -299,8 +313,8 @@ namespace FlashConnect
             ObjectSerializer.Serialize(this.settingFilename, this.settingObject);
         }
 
-		#endregion
-	
-	}
-	
+        #endregion
+
+    }
+
 }

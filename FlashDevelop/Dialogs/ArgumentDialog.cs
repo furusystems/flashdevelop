@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Data;
 using System.Text;
 using System.Drawing;
 using System.ComponentModel;
@@ -10,8 +9,9 @@ using PluginCore.Localization;
 using FlashDevelop.Settings;
 using FlashDevelop.Helpers;
 using PluginCore.Utilities;
-using PluginCore;
 using PluginCore.Helpers;
+using PluginCore.Controls;
+using PluginCore;
 
 namespace FlashDevelop.Dialogs
 {
@@ -47,6 +47,7 @@ namespace FlashDevelop.Dialogs
             this.InitializeContextMenu();
             this.InitializeGraphics();
             this.ApplyLocalizedTexts();
+            ScaleHelper.AdjustForHighDPI(this);
         }
 
         #region Windows Form Designer Generated Code
@@ -249,8 +250,8 @@ namespace FlashDevelop.Dialogs
         {
             ImageList imageList = new ImageList();
             imageList.ColorDepth = ColorDepth.Depth32Bit;
-            imageList.Images.Add(Globals.MainForm.FindImage("242"));
-            this.infoPictureBox.Image = Globals.MainForm.FindImage("229");
+            imageList.Images.Add(Globals.MainForm.FindImage("242", false));
+            this.infoPictureBox.Image = Globals.MainForm.FindImage("229", false);
             this.argsListView.SmallImageList = imageList;
             this.argsListView.SmallImageList.ImageSize = ScaleHelper.Scale(new Size(16, 16));
             this.columnHeader.Width = ScaleHelper.Scale(this.columnHeader.Width);
@@ -263,7 +264,7 @@ namespace FlashDevelop.Dialogs
         {
             ContextMenuStrip contextMenu = new ContextMenuStrip();
             contextMenu.Font = PluginBase.Settings.DefaultFont;
-            contextMenu.Renderer = new DockPanelStripRenderer();
+            contextMenu.Renderer = new DockPanelStripRenderer(false, false);
             contextMenu.Opening += new CancelEventHandler(this.ContextMenuOpening);
             contextMenu.Items.Add(TextHelper.GetString("Label.ImportArguments"), null, this.ImportArguments);
             this.exportItem = new ToolStripMenuItem(TextHelper.GetString("Label.ExportArguments"), null, this.ExportArguments);

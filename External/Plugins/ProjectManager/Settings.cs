@@ -1,19 +1,13 @@
 using System;
-using System.IO;
-using System.Text;
-using System.Drawing;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Drawing.Design;
-using System.Windows.Forms;
-using System.Windows.Forms.Design;
-using System.Xml.Serialization;
-using ProjectManager.Projects;
+using System.IO;
+using PluginCore;
 using PluginCore.Localization;
 using PluginCore.Managers;
-using PluginCore;
 using ProjectManager.Controls;
+using ProjectManager.Projects;
 
 namespace ProjectManager
 {
@@ -40,7 +34,7 @@ namespace ProjectManager
 
         // These are string arrays because they are only edited by the propertygrid (which deals with them nicely)
         string[] excludedFileTypes = new string[] { ".p", ".abc", ".bak", ".tmp" };
-        string[] excludedDirectories = new string[] { ".svn", "_svn", ".cvs", "_cvs", "cvs", "_sgbak", ".git", ".hg" };
+        string[] excludedDirectories = new string[] { ".svn", "_svn", ".cvs", "_cvs", "cvs", "_sgbak", ".git", ".hg", "node_modules" };
         string[] executableFileTypes = new string[] { ".exe", ".lnk", ".fla", ".flump", ".doc", ".pps", ".psd", ".png", ".jpg", ".gif", ".xls", ".docproj", ".ttf", ".otf", ".wav", ".mp3", ".ppt", ".pptx", ".docx", ".xlsx", ".ai", ".pdf", ".zip", ".rar" };
         string[] filteredDirectoryNames = new string[] { "src", "source", "sources", "as", "as2", "as3", "actionscript", "flash", "classes", "trunk", "svn", "git", "hg", "..", "." };
 
@@ -106,7 +100,7 @@ namespace ProjectManager
         [LocalizedCategory("ProjectManager.Category.OtherOptions")]
         [DefaultValue(10)]
         public Int32 MaxRecentProjects
-		{
+        {
             get { return maxRecentProjects; }
             set { maxRecentProjects = value; FireChanged("MaxRecentProjects"); }
         }
@@ -135,10 +129,10 @@ namespace ProjectManager
         [LocalizedDescription("ProjectManager.Description.ExcludedFileTypes")]
         [LocalizedCategory("ProjectManager.Category.Exclusions")]
         public string[] ExcludedFileTypes
-		{
+        {
             get { return excludedFileTypes; }
             set { excludedFileTypes = value; FireChanged("ExcludedFileTypes"); }
-		}
+        }
 
         [DisplayName("Executable File Types")]
         [LocalizedDescription("ProjectManager.Description.ExecutableFileTypes")]
@@ -153,10 +147,10 @@ namespace ProjectManager
         [LocalizedDescription("ProjectManager.Description.ExcludedDirectories")]
         [LocalizedCategory("ProjectManager.Category.Exclusions")]
         public string[] ExcludedDirectories
-		{
+        {
             get { return excludedDirectories; }
             set { excludedDirectories = value; FireChanged("ExcludedDirectories"); }
-		}
+        }
 
         [DisplayName("Filtered Directory Names")]
         [LocalizedDescription("ProjectManager.Description.FilteredDirectoryNames")]
@@ -172,17 +166,17 @@ namespace ProjectManager
         [LocalizedCategory("ProjectManager.Category.ProjectTree")]
         [DefaultValue(true)]
         public bool ShowProjectClasspaths
-		{
+        {
             get { return showProjectClasspaths; }
             set { showProjectClasspaths = value; FireChanged("ShowProjectClasspaths"); }
-		}
+        }
 
         [DisplayName("Show Global Classpaths")]
         [LocalizedDescription("ProjectManager.Description.ShowGlobalClasspaths")]
         [LocalizedCategory("ProjectManager.Category.ProjectTree")]
         [DefaultValue(false)]
         public bool ShowGlobalClasspaths
-		{
+        {
             get { return showGlobalClasspaths; }
             set { showGlobalClasspaths = value; FireChanged("DisableMxmlMapping"); }
         }
@@ -206,6 +200,12 @@ namespace ProjectManager
             get { return tabHighlightType; }
             set { tabHighlightType = value; }
         }
+
+        [DisplayName("Track Active Document")]
+        [LocalizedDescription("ProjectManager.Description.TrackActiveDocument")]
+        [LocalizedCategory("ProjectManager.Category.ProjectTree")]
+        [DefaultValue(false)]
+        public bool TrackActiveDocument { get; set; }
 
         #endregion
 

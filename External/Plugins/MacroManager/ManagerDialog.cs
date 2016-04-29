@@ -7,8 +7,8 @@ using System.ComponentModel;
 using System.Collections.Generic;
 using PluginCore.Localization;
 using PluginCore.Utilities;
-using PluginCore;
 using PluginCore.Helpers;
+using PluginCore;
 
 namespace MacroManager
 {
@@ -180,8 +180,8 @@ namespace MacroManager
         {
             ImageList imageList = new ImageList();
             imageList.ColorDepth = ColorDepth.Depth32Bit;
-            imageList.Images.Add(PluginBase.MainForm.FindImage("338|13|0|0"));
-            this.pictureBox.Image = PluginBase.MainForm.FindImage("229");
+            imageList.Images.Add(PluginBase.MainForm.FindImage("338|13|0|0", false));
+            this.pictureBox.Image = PluginBase.MainForm.FindImage("229", false);
             this.listView.SmallImageList = imageList;
             this.listView.SmallImageList.ImageSize = ScaleHelper.Scale(new Size(16, 16));
             this.columnHeader.Width = -2;
@@ -204,7 +204,7 @@ namespace MacroManager
         {
             ContextMenuStrip contextMenu = new ContextMenuStrip();
             contextMenu.Font = PluginBase.Settings.DefaultFont;
-            contextMenu.Renderer = new DockPanelStripRenderer(false);
+            contextMenu.Renderer = new DockPanelStripRenderer(false, false);
             contextMenu.Opening += new CancelEventHandler(this.ContextMenuOpening);
             contextMenu.Items.Add(TextHelper.GetString("Label.ImportMacros"), null, this.ImportMacros);
             this.exportItem = new ToolStripMenuItem(TextHelper.GetString("Label.ExportMacros"), null, this.ExportMacros);

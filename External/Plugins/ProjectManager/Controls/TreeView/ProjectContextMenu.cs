@@ -2,15 +2,14 @@ using System;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using System.ComponentModel;
 using ProjectManager.Projects;
-using ProjectManager.Projects.AS2;
 using PluginCore.Localization;
 using PluginCore.Helpers;
 using PluginCore;
+using PluginCore.Utilities;
 
 namespace ProjectManager.Controls.TreeView
 {
@@ -22,7 +21,7 @@ namespace ProjectManager.Controls.TreeView
     public class ProjectContextMenu : ContextMenuStrip
     {
         Project project;
-        ProjectTreeView projectTree;
+        ProjectTreeView projectTree; 
         static Image newFolderImg = Icons.Overlay(Icons.Folder.Img, Icons.BulletAdd.Img, 5, -3);
         public ToolStripMenuItem AddMenu = new ToolStripMenuItem(TextHelper.GetString("Label.Add"));
         public ToolStripMenuItem AddNewFolder = new ToolStripMenuItem(TextHelper.GetString("Label.NewFolder"), newFolderImg);
@@ -36,7 +35,7 @@ namespace ProjectManager.Controls.TreeView
         public ToolStripMenuItem Copy = new ToolStripMenuItem(TextHelper.GetString("Label.Copy"), Icons.Copy.Img);
         public ToolStripMenuItem Paste = new ToolStripMenuItem(TextHelper.GetString("Label.Paste"), Icons.Paste.Img);
         public ToolStripMenuItem Delete = new ToolStripMenuItem(TextHelper.GetString("Label.Delete"), Icons.Delete.Img);
-        public ToolStripMenuItem Rename = new ToolStripMenuItem(TextHelper.GetString("Label.Rename"));
+        public ToolStripMenuItem Rename = new ToolStripMenuItem(TextHelper.GetString("Label.Rename"), Icons.Rename.Img);
         public ToolStripMenuItem LibraryOptions = new ToolStripMenuItem(TextHelper.GetString("Label.Options"), Icons.Options.Img);
         public ToolStripMenuItem NothingToDo = new ToolStripMenuItem(TextHelper.GetString("Label.NotValidGroup"));
         public ToolStripMenuItem NoProjectOutput = new ToolStripMenuItem(TextHelper.GetString("Label.NoProjectOutput"));
@@ -68,10 +67,26 @@ namespace ProjectManager.Controls.TreeView
         public ProjectContextMenu()
         {
             this.Renderer = new DockPanelStripRenderer();
-            this.Font = PluginCore.PluginBase.Settings.DefaultFont;
+            this.Font = PluginBase.Settings.DefaultFont;
             this.ImageScalingSize = ScaleHelper.Scale(new Size(16, 16));
             NothingToDo.Enabled = false;
             NoProjectOutput.Enabled = false;
+            // Register menu items
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.TestMovie", TestMovie);
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.Properties", Properties);
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.RunProject", RunProject);
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.BuildProject", BuildProject);
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.CleanProject", CleanProject);
+            PluginBase.MainForm.RegisterSecondaryItem("ProjectMenu.CloseProject", CloseProject);
+            // Set default key strings
+            if (PluginBase.Settings.ViewShortcuts)
+            {
+                this.Open.ShortcutKeyDisplayString = DataConverter.KeysToString(Keys.Enter);
+                this.Cut.ShortcutKeyDisplayString = DataConverter.KeysToString(Keys.Control|Keys.X);
+                this.Copy.ShortcutKeyDisplayString = DataConverter.KeysToString(Keys.Control | Keys.C);
+                this.Paste.ShortcutKeyDisplayString = DataConverter.KeysToString(Keys.Control | Keys.P);
+                this.Delete.ShortcutKeyDisplayString = DataConverter.KeysToString(Keys.Delete);
+            }
         }
 
         public ProjectTreeView ProjectTree
@@ -153,7 +168,6 @@ namespace ProjectManager.Controls.TreeView
             string actualName = Path.GetFileNameWithoutExtension(actualFile); // strip ext
             Image image = Icons.GetImageForFile(actualFile).Img;
             image = Icons.Overlay(image, Icons.BulletAdd.Img, 5, 4);
-            String label = TextHelper.GetString("Label.New");
             ToolStripMenuItem item = new ToolStripMenuItem("New " + actualName + "...", image);
             item.Click += delegate
             {
@@ -307,8 +321,9 @@ namespace ProjectManager.Controls.TreeView
             menu.Add(Browse, 1);
             menu.Add(FindInFiles, 1);
             menu.Add(CommandPrompt, 1);
-            menu.Add(ShellMenu, 1);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 1);
             menu.Add(Paste, 2);
+            menu.Add(Rename, 1);
             menu.Add(ShowHidden, 3, showHidden);
             menu.Add(Properties, 4);
         }
@@ -319,7 +334,7 @@ namespace ProjectManager.Controls.TreeView
             menu.Add(Browse, 0);
             menu.Add(FindInFiles, 0);
             menu.Add(CommandPrompt, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             menu.Add(Paste, 1);
             menu.Add(RemoveSourcePath, 2, true);
             AddHideItems(menu, path, 3);
@@ -336,8 +351,13 @@ namespace ProjectManager.Controls.TreeView
             menu.Add(Browse, 0);
             menu.Add(FindInFiles, 0);
             menu.Add(CommandPrompt, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             AddCompileTargetItems(menu, path, true);
+
+            bool addLibrary = project.IsLibraryAsset(path);
+            menu.Add(AddLibrary, 2, addLibrary);
+            if (addLibrary) menu.Add(LibraryOptions, 2);
+
             if (projectTree.SelectedPaths.Length == 1 && project.IsCompilable)
             {
                 DirectoryNode node = projectTree.SelectedNode as DirectoryNode;
@@ -355,7 +375,7 @@ namespace ProjectManager.Controls.TreeView
             menu.Add(Open, 0);
             menu.Add(Execute, 0);
             menu.Add(FindAndReplace, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             AddCompileTargetItems(menu, path, false);
             AddFileItems(menu, path);
         }
@@ -391,7 +411,7 @@ namespace ProjectManager.Controls.TreeView
             bool addLibrary = project.HasLibraries && project.IsLibraryAsset(path);
             menu.Add(Open, 0);
             menu.Add(Execute, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             menu.Add(Insert, 0);
             if (project.HasLibraries) menu.Add(AddLibrary, 2, addLibrary);
             if (addLibrary) menu.Add(LibraryOptions, 2);
@@ -403,7 +423,7 @@ namespace ProjectManager.Controls.TreeView
             bool addLibrary = project.HasLibraries && project.IsLibraryAsset(path);
             menu.Add(Open, 0);
             menu.Add(Execute, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             menu.Add(Insert, 0);
             if (addLibrary)
             {
@@ -419,7 +439,7 @@ namespace ProjectManager.Controls.TreeView
         {
             bool addLibrary = project.IsLibraryAsset(path);
             menu.Add(Execute, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             menu.Add(AddLibrary, 2, addLibrary);
             if (addLibrary) menu.Add(LibraryOptions, 2);
             if (!this.IsExternalSwc(path)) AddFileItems(menu, path);
@@ -443,7 +463,7 @@ namespace ProjectManager.Controls.TreeView
                 menu.Add(Open, 0);
                 menu.Add(Execute, 0);
                 menu.Add(FindAndReplace, 0);
-                menu.Add(ShellMenu, 0); 
+                if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0); 
                 AddFileItems(menu, node.BackingPath);
             }
             else menu.Add(NoProjectOutput, 0);
@@ -459,7 +479,7 @@ namespace ProjectManager.Controls.TreeView
             AddHideItems(menu, path, 3);
         }
 
-        private void AddHideItems(MergableMenu menu, string path,int group)
+        private void AddHideItems(MergableMenu menu, string path, int group)
         {
             bool hidden = project.IsPathHidden(path);
             bool showHidden = project.ShowHiddenPaths;
@@ -487,7 +507,7 @@ namespace ProjectManager.Controls.TreeView
             menu.Add(Open, 0);
             menu.Add(Execute, 0);
             menu.Add(FindAndReplace, 0);
-            menu.Add(ShellMenu, 0);
+            if (Win32.ShouldUseWin32()) menu.Add(ShellMenu, 0);
             menu.Add(Insert, 0);
             if (IsBuildable(path))
             {
@@ -512,14 +532,14 @@ namespace ProjectManager.Controls.TreeView
             {
                 file = project.GetAbsolutePath(file);
             }
-            if (file.StartsWith(project.Directory)) return false;
+            if (file.StartsWithOrdinal(project.Directory)) return false;
             foreach (string path in project.AbsoluteClasspaths)
             {
-                if (file.StartsWith(path)) return false;
+                if (file.StartsWithOrdinal(path)) return false;
             }
             foreach (string path in PluginMain.Settings.GlobalClasspaths)
             {
-                if (file.StartsWith(path)) return false;
+                if (file.StartsWithOrdinal(path)) return false;
             }
             return true;
         }

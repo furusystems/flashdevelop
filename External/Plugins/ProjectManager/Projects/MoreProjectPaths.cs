@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 using PluginCore.Helpers;
+using PluginCore;
 
 namespace ProjectManager.Projects
 {
@@ -29,7 +29,7 @@ namespace ProjectManager.Projects
             {
                 allDirs.AddRange(Directory.GetDirectories(ProjectTemplatesDirectory));
             }
-            if (Directory.Exists(PathHelper.UserProjectsDir))
+            if (!PluginBase.MainForm.StandaloneMode && Directory.Exists(PathHelper.UserProjectsDir))
             {
                 allDirs.AddRange(Directory.GetDirectories(PathHelper.UserProjectsDir));
             }

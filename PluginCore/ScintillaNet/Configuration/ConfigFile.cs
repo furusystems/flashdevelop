@@ -1,21 +1,20 @@
 using System;
 using System.Collections;
-using System.Runtime;
 using System.Xml.Serialization;
 
 namespace ScintillaNet.Configuration
 {
-    [SerializableAttribute()]
+    [Serializable()]
     public class ConfigFile : ConfigItem
     {
-        [NonSerializedAttribute()]
+        [NonSerialized()]
         protected ConfigFile[] includedFiles;
 
-        [XmlArrayAttribute("includes")]
-        [XmlArrayItemAttribute("include")]
+        [XmlArray("includes")]
+        [XmlArrayItem("include")]
         public include[] includes;
 
-        [NonSerializedAttribute()]
+        [NonSerialized()]
         public string filename;
 
         protected virtual Scintilla ChildScintilla
@@ -46,7 +45,7 @@ namespace ScintillaNet.Configuration
             for (int j = 0; j<includes.Length; j++) includes[j].init(utility, _parent);
             for (int i = 0; i<includes.Length; i++)
             {
-                configFile = (ConfigFile)utility.LoadConfiguration(base.GetType(), includes[i].file, (ConfigFile)_parent);
+                configFile = (ConfigFile)utility.LoadConfiguration(base.GetType(), includes[i].file, _parent);
                 addIncludedFile(configFile);
             }
             CollectScintillaNodes(null);
@@ -54,31 +53,31 @@ namespace ScintillaNet.Configuration
 
         public virtual void CollectScintillaNodes(ArrayList list)
         {
-			if (_parent == this)
-			{
-				if (list != null) return;
-				list = new System.Collections.ArrayList();
-				if (ChildScintilla != null) ChildScintilla.CollectScintillaNodes(list);
-			}
-			else if (list == null) return;
-			ConfigFile cf;
-			if (includedFiles != null)
-			{
-				for (int i = 0 ; i<includedFiles.Length; i++)
-				{
-					cf = includedFiles[i];
-					if (cf == null) continue;
-					if (cf.ChildScintilla != null) list.Add(cf.ChildScintilla);
-					if( cf.ChildScintilla != null ) cf.ChildScintilla.CollectScintillaNodes(list);
-					if( cf.includedFiles != null && cf.includedFiles.Length > 0) cf.CollectScintillaNodes(list);
-				}
-			}
-			if (_parent == this)
-			{
-				ChildScintilla.includedFiles = new ConfigFile[list.Count];
-				list.CopyTo(ChildScintilla.includedFiles);
-			}
-		}
+            if (_parent == this)
+            {
+                if (list != null) return;
+                list = new ArrayList();
+                if (ChildScintilla != null) ChildScintilla.CollectScintillaNodes(list);
+            }
+            else if (list == null) return;
+            ConfigFile cf;
+            if (includedFiles != null)
+            {
+                for (int i = 0 ; i<includedFiles.Length; i++)
+                {
+                    cf = includedFiles[i];
+                    if (cf == null) continue;
+                    if (cf.ChildScintilla != null) list.Add(cf.ChildScintilla);
+                    if( cf.ChildScintilla != null ) cf.ChildScintilla.CollectScintillaNodes(list);
+                    if( cf.includedFiles != null && cf.includedFiles.Length > 0) cf.CollectScintillaNodes(list);
+                }
+            }
+            if (_parent == this)
+            {
+                ChildScintilla.includedFiles = new ConfigFile[list.Count];
+                list.CopyTo(ChildScintilla.includedFiles);
+            }
+        }
         
     }
 

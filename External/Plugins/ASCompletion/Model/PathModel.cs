@@ -1,13 +1,13 @@
 using System;
-using System.Collections;
-using System.Collections.Specialized;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using ASCompletion.Context;
-using PluginCore.Managers;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Windows.Forms;
+using ASCompletion.Context;
+using PluginCore;
 using PluginCore.Bridge;
+using PluginCore.Managers;
+using Timer = System.Timers.Timer;
 
 namespace ASCompletion.Model
 {
@@ -68,7 +68,7 @@ namespace ASCompletion.Model
             PathModel aPath;
             if (pathes.ContainsKey(modelName))
             {
-                aPath = pathes[modelName] as PathModel;
+                aPath = pathes[modelName];
                 if (aPath.IsTemporaryPath || !aPath.IsValid || aPath.FilesCount == 0)
                 {
                     pathes[modelName] = aPath = new PathModel(path, context);
@@ -92,7 +92,7 @@ namespace ASCompletion.Model
         private bool inited;
         private bool inUse;
         private WatcherEx watcher;
-        private System.Timers.Timer updater;
+        private Timer updater;
         private string[] masks;
         private string basePath;
         private Dictionary<string, FileModel> files;
@@ -150,9 +150,9 @@ namespace ASCompletion.Model
         {
             if (inited && IsValid) return;
             inited = true;
-            updater = new System.Timers.Timer();
+            updater = new Timer();
             updater.Interval = 500;
-            updater.SynchronizingObject = PluginCore.PluginBase.MainForm as Form;
+            updater.SynchronizingObject = PluginBase.MainForm as Form;
             updater.Elapsed += updater_Tick;
             toExplore = new List<string>();
             toRemove = new List<string>();
@@ -245,9 +245,9 @@ namespace ASCompletion.Model
             {
                 if (mask[0] == '*')
                 {
-                    if (fileName.EndsWith(mask.Substring(1))) return true;
+                    if (fileName.EndsWithOrdinal(mask.Substring(1))) return true;
                 }
-                else if (fileName.EndsWith(mask)) return true;
+                else if (fileName.EndsWithOrdinal(mask)) return true;
             }
             return false;
         }
@@ -255,7 +255,7 @@ namespace ASCompletion.Model
         private void watcher_Renamed(object sender, RenamedEventArgs e)
         {
             // possibly renamed the watched folder
-            if (!e.FullPath.StartsWith(basePath) && e.FullPath != Path)
+            if (!e.FullPath.StartsWithOrdinal(basePath) && e.FullPath != Path)
                 return;
             // folder renamed: flag directory to be removed from models
             if (!maskMatch(e.FullPath))
@@ -268,8 +268,8 @@ namespace ASCompletion.Model
                         // add to known removed paths
                         List<string> newSchedule = new List<string>();
                         foreach (string scheduled in toRemove)
-                            if (path.StartsWith(scheduled)) return;
-                            else if (!scheduled.StartsWith(path)) newSchedule.Add(scheduled);
+                            if (path.StartsWithOrdinal(scheduled)) return;
+                            else if (!scheduled.StartsWithOrdinal(path)) newSchedule.Add(scheduled);
                         newSchedule.Add(path);
                         toRemove = newSchedule;
                     }
@@ -294,7 +294,7 @@ namespace ASCompletion.Model
 
         private void watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            if (!e.FullPath.StartsWith(basePath) && e.FullPath != Path)
+            if (!e.FullPath.StartsWithOrdinal(basePath) && e.FullPath != Path)
                 return;
             // directory change: schedule for exploration
             if (!maskMatch(e.FullPath))
@@ -305,8 +305,8 @@ namespace ASCompletion.Model
                     // add path for exploration if not already scheduled
                     List<string> newSchedule = new List<string>();
                     foreach (string scheduled in toExplore)
-                        if (path.StartsWith(scheduled)) return;
-                        else if (!scheduled.StartsWith(path)) newSchedule.Add(scheduled);
+                        if (path.StartsWithOrdinal(scheduled)) return;
+                        else if (!scheduled.StartsWithOrdinal(path)) newSchedule.Add(scheduled);
                     newSchedule.Add(path);
                     toExplore = newSchedule;
                 }
@@ -334,7 +334,7 @@ namespace ASCompletion.Model
 
         private void watcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            if (!e.FullPath.StartsWith(basePath) && e.FullPath != Path)
+            if (!e.FullPath.StartsWithOrdinal(basePath) && e.FullPath != Path)
                 return;
             // (possibly) folder deleted
             if (!maskMatch(e.FullPath))
@@ -345,8 +345,8 @@ namespace ASCompletion.Model
                     // add to known removed paths
                     List<string> newSchedule = new List<string>();
                     foreach (string scheduled in toRemove)
-                        if (path.StartsWith(scheduled)) return;
-                        else if (!scheduled.StartsWith(path)) newSchedule.Add(scheduled);
+                        if (path.StartsWithOrdinal(scheduled)) return;
+                        else if (!scheduled.StartsWithOrdinal(path)) newSchedule.Add(scheduled);
                     newSchedule.Add(path);
                     toRemove = newSchedule;
                 }
@@ -402,7 +402,7 @@ namespace ASCompletion.Model
             {
                 bool drop = false;
                 foreach (string remPath in _toRemove)
-                    if (file.StartsWith(remPath))
+                    if (file.StartsWithOrdinal(remPath))
                     {
                         //TraceManager.Add("drop: " + files[file].FileName);
                         drop = true;
@@ -462,25 +462,25 @@ namespace ASCompletion.Model
             if (!Directory.Exists(path)) return;
             explored.Add(path);
 
-            // convert classes
             try
             {
+                // convert classes
                 foreach (string mask in masks)
                 {
                     string[] files = Directory.GetFiles(path, mask);
                     if (files != null)
                         foreach (string file in files) foundFiles.Add(file);
                 }
+
+                // explore subfolders
+                string[] dirs = Directory.GetDirectories(path);
+                foreach (string dir in dirs)
+                {
+                    if (!explored.Contains(dir) && (File.GetAttributes(dir) & FileAttributes.Hidden) == 0)
+                        ExploreFolder(dir, masks, explored, foundFiles);
+                }
             }
             catch { }
-
-            // explore subfolders
-            string[] dirs = Directory.GetDirectories(path);
-            foreach (string dir in dirs)
-            {
-                if (!explored.Contains(dir) && (File.GetAttributes(dir) & FileAttributes.Hidden) == 0)
-                    ExploreFolder(dir, masks, explored, foundFiles);
-            }
         }
         #endregion
 
@@ -493,6 +493,24 @@ namespace ASCompletion.Model
                 watcher = null;
                 //TraceManager.Add("Release: " + Path);
             }
+        }
+
+        /// <summary>
+        /// Temporarily disables the watcher to release the lock on directories / files
+        /// </summary>
+        public void DisableWatcher()
+        {
+            if (watcher != null)
+                watcher.EnableRaisingEvents = false;
+        }
+
+        /// <summary>
+        /// Should be called after DisableWatcher()
+        /// </summary>
+        public void EnableWatcher()
+        {
+            if (watcher != null)
+                watcher.EnableRaisingEvents = true;
         }
 
         public bool HasFile(string fileName)
@@ -572,6 +590,59 @@ namespace ASCompletion.Model
                 files.Clear();
             }
             ReleaseWatcher();
+        }
+
+        public void Serialize(string path)
+        {
+            lock (lockObject)
+            {
+                try
+                {
+                    using (Stream stream = File.Open(path, FileMode.Create))
+                    {
+                        BinaryFormatter bin = new BinaryFormatter();
+                        bin.Serialize(stream, files);
+                    }
+                }
+                catch (Exception)
+                {
+                    TraceManager.AddAsync("Failed to serialize: " + path);
+                }
+            }
+        }
+
+        public bool Deserialize(string path)
+        {
+            try
+            {
+                using (Stream stream = File.Open(path, FileMode.Open))
+                {
+                    BinaryFormatter bin = new BinaryFormatter();
+                    var newFiles = (Dictionary<string, FileModel>)bin.Deserialize(stream);
+
+                    lock (lockObject)
+                    {
+                        foreach (string key in newFiles.Keys)
+                        {
+                            var aFile = newFiles[key];
+                            if (File.Exists(aFile.FileName))
+                            {
+                                var info = new FileInfo(aFile.FileName);
+                                if (info.LastWriteTime != aFile.LastWriteTime) aFile.OutOfDate = true;
+
+                                aFile.Context = Owner;
+                                files[key] = aFile;
+                            }
+                        }
+                    }
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                TraceManager.AddAsync("Failed to deserialize: " + path);
+                return false;
+            }
         }
     }
 }

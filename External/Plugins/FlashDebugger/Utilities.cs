@@ -1,12 +1,5 @@
-﻿using System;
-using System.IO;
-using System.Text;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
+﻿using System.IO;
 using System.Xml.Serialization;
-using Microsoft.Win32;
 
 namespace FlashDebugger
 {
@@ -16,7 +9,7 @@ namespace FlashDebugger
         {
             public static void SaveFile(string filename, T obj)
             {
-                XmlSerializer serializer1 = new XmlSerializer(typeof(T));
+                XmlSerializer serializer1 = XmlSerializer.FromTypes(new[]{typeof(T)})[0];
                 FileStream fs1 = new FileStream(filename, FileMode.Create);
                 serializer1.Serialize(fs1, obj);
                 fs1.Close();
@@ -24,7 +17,7 @@ namespace FlashDebugger
 
             public static T LoadFile(string filename)
             {
-                XmlSerializer serializer2 = new XmlSerializer(typeof(T));
+                XmlSerializer serializer2 = XmlSerializer.FromTypes(new[]{typeof(T)})[0];
                 FileStream fs2 = new FileStream(filename, FileMode.Open);
                 T loadClasses = (T)serializer2.Deserialize(fs2);
                 fs2.Close();
@@ -33,7 +26,7 @@ namespace FlashDebugger
 
             public static T LoadString(string s)
             {
-                XmlSerializer serializer = new XmlSerializer(typeof(T));
+                XmlSerializer serializer = XmlSerializer.FromTypes(new[]{typeof(T)})[0];
                 StringReader str = new StringReader(s);
                 T loadClasses = (T)serializer.Deserialize(str);
                 str.Close();

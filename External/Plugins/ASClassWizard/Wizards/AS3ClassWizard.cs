@@ -1,32 +1,16 @@
-﻿
-#region Imports
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Text;
 using System.IO;
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
-
 using PluginCore;
 using PluginCore.Localization;
 using ProjectManager.Projects;
-
-using ASClassWizard.Wizards;
-using ASClassWizard.Resources;
-
 using ASCompletion.Context;
 using ASCompletion.Model;
-
-using AS3Context;
-using AS2Context;
 using System.Reflection;
 using System.Diagnostics;
-#endregion
-
 
 namespace ASClassWizard.Wizards
 {
@@ -34,7 +18,9 @@ namespace ASClassWizard.Wizards
     {
         private string directoryPath;
         private Project project;
-        public const string REG_IDENTIFIER = "^[a-zA-Z_$][a-zA-Z0-9_$]*$";
+        public const string REG_IDENTIFIER_AS = "^[a-zA-Z_$][a-zA-Z0-9_$]*$";
+        // $ is not a valid char in haxe class names
+        public const string REG_IDENTIFIER_HAXE = "^[a-zA-Z_][a-zA-Z0-9_]*$";
 
         public AS3ClassWizard()
         {
@@ -68,11 +54,11 @@ namespace ASClassWizard.Wizards
             set { packageBox.Text = value; }
         }
 
-		public String StartupClassName
-		{
-			set { classBox.Text = value; }
-		}
-		
+        public String StartupClassName
+        {
+            set { classBox.Text = value; }
+        }
+        
         public string Directory
         {
             get { return this.directoryPath; }
@@ -97,7 +83,6 @@ namespace ASClassWizard.Wizards
                 if (project.Language == "haxe")
                 {
                     this.internalRadio.Text = "private";
-                    this.finalCheck.Enabled = false;
                     this.titleLabel.Text = TextHelper.GetString("Wizard.Label.NewHaxeClass");
                     this.Text = TextHelper.GetString("Wizard.Label.NewHaxeClass");
                 }
@@ -112,10 +97,14 @@ namespace ASClassWizard.Wizards
         private void ValidateClass()
         {
             string errorMessage = "";
-            if (getClassName() == "" || !Regex.Match(getClassName(), REG_IDENTIFIER, RegexOptions.Singleline).Success)
-            {
+            string regex = (project.Language == "haxe") ? REG_IDENTIFIER_HAXE : REG_IDENTIFIER_AS; 
+            if (getClassName() == "")
+                errorMessage = TextHelper.GetString("Wizard.Error.EmptyClassName");
+            else if (!Regex.Match(getClassName(), regex, RegexOptions.Singleline).Success)
                 errorMessage = TextHelper.GetString("Wizard.Error.InvalidClassName");
-            }
+            else if (project.Language == "haxe" && Char.IsLower(getClassName()[0]))
+                errorMessage = TextHelper.GetString("Wizard.Error.LowercaseClassName");
+
             if (errorMessage != "")
             {
                 okButton.Enabled = false;
@@ -134,8 +123,6 @@ namespace ASClassWizard.Wizards
         /// <summary>
         /// Browse project packages
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void packageBrowse_Click(object sender, EventArgs e)
         {
 
@@ -172,79 +159,67 @@ namespace ASClassWizard.Wizards
             this.ValidateClass();
         }
 
-        private void cancelButton_Click(object sender, EventArgs e)
-        {
-            this.DialogResult = DialogResult.Cancel;
-            this.Close();
-        }
-
-        private void okButton_Click(object sender, EventArgs e)
-        {
-            this.DialogResult = DialogResult.OK;
-            this.Close();
-        }
-
         private void baseBrowse_Click(object sender, EventArgs e)
         {
-            ClassBrowser browser = new ClassBrowser();
-            IASContext context   = ASContext.GetLanguageContext(PluginBase.CurrentProject.Language);
-            try
+            using (ClassBrowser browser = new ClassBrowser())
             {
-                browser.ClassList = context.GetAllProjectClasses();
+                IASContext context = ASContext.GetLanguageContext(PluginBase.CurrentProject.Language);
+                try
+                {
+                    browser.ClassList = context.GetAllProjectClasses();
+                }
+                catch { }
+                browser.ExcludeFlag = FlagType.Interface;
+                browser.IncludeFlag = FlagType.Class;
+                if (browser.ShowDialog(this) == DialogResult.OK)
+                {
+                    this.baseBox.Text = browser.SelectedClass;
+                }
+                this.okButton.Focus();
             }
-            catch { }
-            browser.ExcludeFlag  = FlagType.Interface;
-            browser.IncludeFlag  = FlagType.Class;
-            if (browser.ShowDialog(this) == DialogResult.OK)
-            {
-                this.baseBox.Text = browser.SelectedClass;
-            }
-            this.okButton.Focus();
         }
 
         /// <summary>
         /// Added interface
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void implementBrowse_Click(object sender, EventArgs e)
         {
-            ClassBrowser browser = new ClassBrowser();
-            MemberList known = null;
-            browser.IncludeFlag = FlagType.Interface;
-            IASContext context = ASContext.GetLanguageContext(PluginBase.CurrentProject.Language);
-            try
+            using (ClassBrowser browser = new ClassBrowser())
             {
-                known = context.GetAllProjectClasses();
-                known.Merge(ASContext.Context.GetVisibleExternalElements());
-            }
-            catch (Exception error)
-            {
-                Debug.WriteLine(error.StackTrace);
-            }
-            browser.ClassList = known;
-            if (browser.ShowDialog(this) == DialogResult.OK)
-            {
-                if (browser.SelectedClass != null)
+                MemberList known = null;
+                browser.IncludeFlag = FlagType.Interface;
+                IASContext context = ASContext.GetLanguageContext(PluginBase.CurrentProject.Language);
+                try
                 {
-                    foreach (string item in this.implementList.Items)
-                    {
-                        if (item == browser.SelectedClass) return;
-                    }
-                    this.implementList.Items.Add(browser.SelectedClass);
+                    known = context.GetAllProjectClasses();
+                    known.Merge(ASContext.Context.GetVisibleExternalElements());
                 }
+                catch (Exception error)
+                {
+                    Debug.WriteLine(error.StackTrace);
+                }
+                browser.ClassList = known;
+                if (browser.ShowDialog(this) == DialogResult.OK)
+                {
+                    if (browser.SelectedClass != null)
+                    {
+                        foreach (string item in this.implementList.Items)
+                        {
+                            if (item == browser.SelectedClass) return;
+                        }
+                        this.implementList.Items.Add(browser.SelectedClass);
+                    }
+                }
+                this.implementRemove.Enabled = this.implementList.Items.Count > 0;
+                this.implementList.SelectedIndex = this.implementList.Items.Count - 1;
+                this.superCheck.Enabled = this.implementList.Items.Count > 0;
+                ValidateClass();
             }
-            this.implementRemove.Enabled = this.implementList.Items.Count > 0;
-            this.implementList.SelectedIndex = this.implementList.Items.Count - 1;
-            this.superCheck.Enabled = this.implementList.Items.Count > 0;
-            ValidateClass();
         }
 
         /// <summary>
         /// Remove interface
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void interfaceRemove_Click(object sender, EventArgs e)
         {
             if (this.implementList.SelectedItem != null)
@@ -278,7 +253,7 @@ namespace ASClassWizard.Wizards
 
         #endregion
 
-        public static Image GetResource( string resourceID )
+        public static Image GetResource(string resourceID)
         {
             resourceID = "ASClassWizard." + resourceID;
             Assembly assembly = Assembly.GetExecutingAssembly();

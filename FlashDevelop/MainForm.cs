@@ -2,37 +2,34 @@
 #region Imports
 
 using System;
-using System.IO;
-using System.Text;
-using System.Drawing;
-using System.Threading;
-using System.Reflection;
 using System.Collections;
-using System.Diagnostics;
-using System.Windows.Forms;
-using System.ComponentModel;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
-using System.Runtime.InteropServices;
-using ScintillaNet.Configuration;
-using PluginCore.Localization;
-using FlashDevelop.Controls;
-using FlashDevelop.Docking;
-using FlashDevelop.Utilities;
-using FlashDevelop.Managers;
-using FlashDevelop.Helpers;
-using FlashDevelop.Dialogs;
-using FlashDevelop.Settings;
-using WeifenLuo.WinFormsUI;
-using WeifenLuo.WinFormsUI.Docking;
-using ICSharpCode.SharpZipLib.Zip;
-using PluginCore.Utilities;
-using PluginCore.Managers;
-using PluginCore.Helpers;
-using PluginCore.Controls;
+using System.Windows.Forms;
 using CSScriptLibrary;
-using ScintillaNet;
+using FlashDevelop.Controls;
+using FlashDevelop.Dialogs;
+using FlashDevelop.Docking;
+using FlashDevelop.Helpers;
+using FlashDevelop.Managers;
+using FlashDevelop.Settings;
+using FlashDevelop.Utilities;
+using ICSharpCode.SharpZipLib.Zip;
 using PluginCore;
+using PluginCore.Controls;
+using PluginCore.Helpers;
+using PluginCore.Localization;
+using PluginCore.Managers;
+using PluginCore.Utilities;
+using ScintillaNet;
+using ScintillaNet.Configuration;
+using WeifenLuo.WinFormsUI.Docking;
 
 #endregion
 
@@ -44,13 +41,16 @@ namespace FlashDevelop
 
         public MainForm()
         {
-            MainForm.Instance = this;
+            Globals.MainForm = this;
             PluginBase.Initialize(this);
+            this.DoubleBuffered = true;
             this.InitializeErrorLog();
             this.InitializeSettings();
             this.InitializeLocalization();
             if (this.InitializeFirstRun() != DialogResult.Abort)
             {
+                // Suspend layout!
+                this.SuspendLayout();
                 this.InitializeConfig();
                 this.InitializeRendering();
                 this.InitializeComponents();
@@ -93,7 +93,7 @@ namespace FlashDevelop
         #region Private Properties
 
         /* AppMan */
-        FileSystemWatcher amWatcher;
+        private FileSystemWatcher amWatcher;
 
         /* Components */
         private QuickFind quickFind;
@@ -105,6 +105,7 @@ namespace FlashDevelop
         private ToolStripProgressBar toolStripProgressBar;
         private ToolStripStatusLabel toolStripProgressLabel;
         private ToolStripStatusLabel toolStripStatusLabel;
+        private ToolStripButton restartButton;
         private ProcessRunner processRunner;
 
         /* Dialogs */
@@ -125,7 +126,7 @@ namespace FlashDevelop
         private ContextMenuStrip editorMenu;
 
         /* Working Dir */
-        String workingDirectory = String.Empty;
+        private String workingDirectory = String.Empty;
 
         /* Form State */
         private FormState formState;
@@ -147,7 +148,6 @@ namespace FlashDevelop
         /* Singleton */
         public static Boolean Silent;
         public static Boolean IsFirst;
-        public static MainForm Instance;
         public static String[] Arguments;
 
         #endregion
@@ -255,7 +255,7 @@ namespace FlashDevelop
         /// </summary>
         public ISettings Settings
         {
-            get { return (ISettings)this.appSettings; }
+            get { return this.appSettings; }
         }
 
         /// <summary>
@@ -288,7 +288,7 @@ namespace FlashDevelop
         /// </summary>
         public Boolean IsFirstInstance
         {
-            get { return MainForm.IsFirst; }
+            get { return IsFirst; }
         }
 
         /// <summary>
@@ -319,7 +319,7 @@ namespace FlashDevelop
             get
             {
                 List<ITabbedDocument> documents = new List<ITabbedDocument>();
-                foreach (DockPane pane in Globals.MainForm.DockPanel.Panes)
+                foreach (DockPane pane in DockPanel.Panes)
                 {
                     if (pane.DockState == DockState.Document)
                     {
@@ -459,7 +459,7 @@ namespace FlashDevelop
         /// </summary>
         public String[] StartArguments
         {
-            get { return MainForm.Arguments; }
+            get { return Arguments; }
         }
 
         /// <summary>
@@ -484,6 +484,19 @@ namespace FlashDevelop
         public new String ProductName
         {
             get { return Application.ProductName; }
+        }
+
+        /// <summary>
+        /// Gets the command prompt executable (custom or cmd.exe by default).
+        /// </summary>
+        public string CommandPromptExecutable
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(Settings.CustomCommandPrompt) && File.Exists(Settings.CustomCommandPrompt))
+                    return Settings.CustomCommandPrompt;
+                return "cmd.exe";
+            }
         }
 
         /// <summary>
@@ -522,8 +535,8 @@ namespace FlashDevelop
         }
 
         /// <summary>
-		/// Creates a new empty document
-		/// </summary>
+        /// Creates a new empty document
+        /// </summary>
         public DockContent CreateEditableDocument(String file, String text, Int32 codepage)
         {
             try
@@ -547,14 +560,14 @@ namespace FlashDevelop
         }
 
         /// <summary>
-		/// Creates a floating panel for the plugin
-		/// </summary>
+        /// Creates a floating panel for the plugin
+        /// </summary>
         public DockContent CreateDockablePanel(Control ctrl, String guid, Image image, DockState defaultDockState)
         {
             try
             {
                 DockablePanel dockablePanel = new DockablePanel(ctrl, guid);
-                if (image != null) dockablePanel.Icon = ImageKonverter.ImageToIcon(image);
+                dockablePanel.Image = image;
                 dockablePanel.DockState = defaultDockState;
                 LayoutManager.PluginPanels.Add(dockablePanel);
                 return dockablePanel;
@@ -585,32 +598,34 @@ namespace FlashDevelop
                 }
                 else return null;
             }
-            else if (file.EndsWith(".delete.fdz"))
+            else if (file.EndsWithOrdinal(".delete.fdz"))
             {
                 this.CallCommand("RemoveZip", file);
                 return null;
             }
-            else if (file.EndsWith(".fdz"))
+            else if (file.EndsWithOrdinal(".fdz"))
             {
                 this.CallCommand("ExtractZip", file);
-                if (file.ToLower().IndexOf("theme") != -1)
+                if (file.IndexOf("theme", StringComparison.OrdinalIgnoreCase) != -1)
                 {
                     String currentTheme = Path.Combine(PathHelper.ThemesDir, "CURRENT");
-                    if (File.Exists(currentTheme)) ThemeManager.LoadTheme(currentTheme);
-                    this.RefreshSciConfig();
-                    this.Refresh();
+                    if (File.Exists(currentTheme))
+                    {
+                        ThemeManager.LoadTheme(currentTheme);
+                        ThemeManager.WalkControls(this);
+                        this.RefreshSciConfig();
+                    }
                 }
                 return null;
             }
             try
             {
-                Int32 count = this.Documents.Length;
-                for (Int32 i = 0; i < count; i++)
+                foreach (ITabbedDocument doc in this.Documents)
                 {
-                    if (this.Documents[i].IsEditable && this.Documents[i].FileName.ToUpper() == file.ToUpper())
+                    if (doc.IsEditable && doc.FileName.ToUpper() == file.ToUpper())
                     {
-                        this.Documents[i].Activate();
-                        return null;
+                        doc.Activate();
+                        return doc as DockContent;
                     }
                 }
             }
@@ -686,7 +701,7 @@ namespace FlashDevelop
         }
 
         /// <summary>
-        /// Initializes the config detection
+        /// Initializes the theme and config detection
         /// </summary>
         private void InitializeConfig()
         {
@@ -706,10 +721,16 @@ namespace FlashDevelop
                     File.Delete(appman);
                     this.refreshConfig = true;
                 }
-                // Apply appman path to PATH
+                // Load platform data from user files
+                PlatformData.Load(Path.Combine(PathHelper.SettingDir, "Platforms"));
+                // Load current theme for applying later
+                String currentTheme = Path.Combine(PathHelper.ThemesDir, "CURRENT");
+                if (File.Exists(currentTheme)) ThemeManager.LoadTheme(currentTheme);
+                // Apply FD dir and appman dir to PATH
                 String amPath = Path.Combine(PathHelper.ToolDir, "AppMan");
                 String oldPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
-                Environment.SetEnvironmentVariable("PATH", oldPath + ";" + amPath, EnvironmentVariableTarget.Process);
+                String newPath = oldPath + ";" + amPath + ";" + PathHelper.AppDir;
+                Environment.SetEnvironmentVariable("PATH", newPath, EnvironmentVariableTarget.Process);
                 // Watch for appman update notifications
                 this.amWatcher = new FileSystemWatcher(PathHelper.BaseDir, ".appman");
                 this.amWatcher.Changed += new FileSystemEventHandler(this.AppManUpdate);
@@ -718,30 +739,41 @@ namespace FlashDevelop
                 this.amWatcher.EnableRaisingEvents = true;
             }
             catch {} // No errors...
-
-            // Load platforms data
-            try
-            {
-                PlatformData.Load(Path.Combine(PathHelper.SettingDir, "Platforms"));
-            }
-            catch (Exception ex)
-            {
-                ErrorManager.ShowError("Invalid 'Platforms' in Settings", ex);
-            }
         }
 
         /// <summary>
-        /// When AppMan is closed, it notifies of changes. Forward notifications.
+        /// When AppMan installs something it notifies of changes. Forward notifications.
         /// </summary>
         private void AppManUpdate(Object sender, FileSystemEventArgs e)
         {
             try
             {
-                String appman = Path.Combine(PathHelper.BaseDir, ".appman");
+
                 NotifyEvent ne = new NotifyEvent(EventType.AppChanges);
-                EventManager.DispatchEvent(this, ne);
+                EventManager.DispatchEvent(this, ne); // Notify plugins...
+                String appMan = Path.Combine(PathHelper.BaseDir, ".appman");
+                String contents = File.ReadAllText(appMan);
+                if (contents == "restart")
+                {
+                    this.RestartRequired();
+                }
             }
             catch {} // No errors...
+        }
+
+        /// <summary>
+        /// Initializes the restart button
+        /// </summary>
+        private void InitializeRestartButton()
+        {
+            this.restartButton = new ToolStripButton();
+            this.restartButton.Image = this.FindImage("73|6|3|3");
+            this.restartButton.Alignment = ToolStripItemAlignment.Right;
+            this.restartButton.Text = TextHelper.GetString("Label.Restart");
+            this.restartButton.ToolTipText = TextHelper.GetString("Info.RequiresRestart");
+            this.restartButton.Click += delegate { this.Restart(null, null); };
+            this.restartButton.Visible = false;
+            this.toolStrip.Items.Add(this.restartButton);
         }
 
         /// <summary>
@@ -760,7 +792,7 @@ namespace FlashDevelop
         /// </summary>
         private DialogResult InitializeFirstRun()
         {
-            if (!this.StandaloneMode && MainForm.IsFirst && FirstRunDialog.ShouldProcessCommands())
+            if (!this.StandaloneMode && IsFirst && FirstRunDialog.ShouldProcessCommands())
             {
                 return FirstRunDialog.Show();
             }
@@ -831,15 +863,62 @@ namespace FlashDevelop
         }
 
         /// <summary>
+        /// Checks for updates in specified schedule
+        /// </summary>
+        public void CheckForUpdates()
+        {
+            try
+            {
+                DateTime last = new DateTime(this.appSettings.LastUpdateCheck);
+                TimeSpan elapsed = DateTime.UtcNow.Subtract(last);
+                switch (this.appSettings.CheckForUpdates)
+                {
+                    case UpdateInterval.Weekly:
+                    {
+                        if (elapsed.TotalDays >= 7)
+                        {
+                            this.appSettings.LastUpdateCheck = DateTime.UtcNow.Ticks;
+                            UpdateDialog.Show(true);
+                        }
+                        break;
+                    }
+                    case UpdateInterval.Monthly:
+                    {
+                        if (elapsed.TotalDays >= 30)
+                        {
+                            this.appSettings.LastUpdateCheck = DateTime.UtcNow.Ticks;
+                            UpdateDialog.Show(true);
+                        }
+                        break;
+                    }
+                    default: break;
+                }
+            }
+            catch { /* NO ERRORS PLEASE */ }
+        }
+
+        /// <summary>
+        /// Initializes the window position and size
+        /// </summary>
+        public void InitializeWindow()
+        {
+            this.WindowState = this.appSettings.WindowState;
+            Point position = new Point(this.appSettings.WindowPosition.X, this.appSettings.WindowPosition.Y);
+            if (position.X < -4) position.X = 0;
+            if (position.Y < -25) position.Y = 0;
+            this.Location = position;
+            // Continue/perform layout!
+            this.ResumeLayout(false);
+            this.PerformLayout();
+        }
+
+        /// <summary>
         /// Initialises the plugins, restores the layout and sets an fixed position
         /// </summary>
         public void InitializeMainForm()
         {
             try
             {
-                Point position = this.appSettings.WindowPosition;
-                if (position.X < -4 || position.Y < -12) this.Location = new Point(0, 0);
-                else this.Location = position; // Set zero position if window is hidden
                 String pluginDir = PathHelper.PluginDir; // Plugins of all users
                 if (Directory.Exists(pluginDir)) PluginServices.FindPlugins(pluginDir);
                 if (!this.StandaloneMode) // No user plugins on standalone...
@@ -868,8 +947,8 @@ namespace FlashDevelop
             this.dockPanel = new DockPanel();
             this.statusStrip = new StatusStrip();
             this.toolStripPanel = new ToolStripPanel();
-            this.toolStrip = StripBarManager.GetToolStrip(FileNameHelper.ToolBar);
             this.menuStrip = StripBarManager.GetMenuStrip(FileNameHelper.MainMenu);
+            this.toolStrip = StripBarManager.GetToolStrip(FileNameHelper.ToolBar);
             this.editorMenu = StripBarManager.GetContextMenu(FileNameHelper.ScintillaMenu);
             this.tabMenu = StripBarManager.GetContextMenu(FileNameHelper.TabMenu);
             this.toolStripStatusLabel = new ToolStripStatusLabel();
@@ -880,13 +959,20 @@ namespace FlashDevelop
             this.openFileDialog = new OpenFileDialog();
             this.colorDialog = new ColorDialog();
             this.printDialog = new PrintDialog();
-            this.SuspendLayout();
             //
             // toolStripPanel
             //
             this.toolStripPanel.Dock = DockStyle.Top;
-            this.toolStripPanel.Controls.Add(this.toolStrip);
-            this.toolStripPanel.Controls.Add(this.menuStrip);
+            if (Win32.IsRunningOnMono())
+            {
+                this.toolStripPanel.Controls.Add(this.menuStrip);
+                this.toolStripPanel.Controls.Add(this.toolStrip);
+            }
+            else 
+            {
+                this.toolStripPanel.Controls.Add(this.toolStrip);
+                this.toolStripPanel.Controls.Add(this.menuStrip);
+            }
             this.tabMenu.Font = Globals.Settings.DefaultFont;
             this.toolStrip.Font = Globals.Settings.DefaultFont;
             this.menuStrip.Font = Globals.Settings.DefaultFont;
@@ -967,8 +1053,7 @@ namespace FlashDevelop
             //
             this.AllowDrop = true;
             this.Name = "MainForm";
-            this.Text = "FlashDevelop";
-            this.Size = new Size(800, 600);
+            this.Text = DistroConfig.DISTRIBUTION_NAME;
             this.Controls.Add(this.dockPanel);
             this.Controls.Add(this.toolStripPanel);
             this.Controls.Add(this.statusStrip);
@@ -977,14 +1062,14 @@ namespace FlashDevelop
             this.Font = this.appSettings.DefaultFont;
             this.StartPosition = FormStartPosition.Manual;
             this.Closing += new CancelEventHandler(this.OnMainFormClosing);
+            this.FormClosed += new FormClosedEventHandler(this.OnMainFormClosed);
             this.Activated += new EventHandler(this.OnMainFormActivate);
             this.Shown += new EventHandler(this.OnMainFormShow);
             this.Load += new EventHandler(this.OnMainFormLoad);
             this.LocationChanged += new EventHandler(this.OnMainFormLocationChange);
             this.GotFocus += new EventHandler(this.OnMainFormGotFocus);
             this.Resize += new EventHandler(this.OnMainFormResize);
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            ScintillaManager.ConfigurationLoaded += this.ApplyAllSettings;
         }
 
         #endregion
@@ -992,13 +1077,12 @@ namespace FlashDevelop
         #region Event Handlers
 
         /// <summary>
-		/// Checks the file changes and activates
-		/// </summary>
+        /// Checks the file changes and activates
+        /// </summary>
         private void OnMainFormActivate(Object sender, System.EventArgs e)
         {
             if (this.CurrentDocument == null) return;
             this.CurrentDocument.Activate(); // Activate the current document
-            TabbedDocument document = (TabbedDocument)this.CurrentDocument;
             ButtonManager.UpdateFlaggedButtons();
         }
 
@@ -1008,7 +1092,6 @@ namespace FlashDevelop
         private void OnMainFormGotFocus(Object sender, System.EventArgs e)
         {
             if (this.CurrentDocument == null) return;
-            TabbedDocument document = (TabbedDocument)this.CurrentDocument;
             ButtonManager.UpdateFlaggedButtons();
         }
 
@@ -1018,7 +1101,6 @@ namespace FlashDevelop
         /// </summary>
         private void OnMainFormShow(Object sender, System.EventArgs e)
         {
-            this.WindowState = this.appSettings.WindowState;
             if (RecoveryDialog.ShouldShowDialog()) RecoveryDialog.Show();
         }
 
@@ -1089,10 +1171,9 @@ namespace FlashDevelop
                 if (!ne.Handled) this.SmartNew(null, null);
             }
             /**
-            * Load and apply current active theme
-            */ 
-            String currentTheme = Path.Combine(PathHelper.ThemesDir, "CURRENT");
-            if (File.Exists(currentTheme)) ThemeManager.LoadTheme(currentTheme);
+            * Apply the default loaded theme
+            */
+            ThemeManager.WalkControls(this);
             /**
             * Notify plugins that the application is ready
             */
@@ -1106,6 +1187,18 @@ namespace FlashDevelop
             * Apply all settings to all documents
             */
             this.ApplyAllSettings();
+            /**
+            * Initialize window and continue layout
+            */
+            this.InitializeWindow();
+            /**
+            * Initializes the restart button
+            */
+            this.InitializeRestartButton();
+            /**
+            * Check for updates when needed
+            */
+            this.CheckForUpdates();
         }
 
         /// <summary>
@@ -1126,7 +1219,7 @@ namespace FlashDevelop
             {
                 String title = TextHelper.GetString("Title.ConfirmDialog");
                 String message = TextHelper.GetString("Info.AreYouSureToExit");
-                DialogResult result = MessageBox.Show(Globals.MainForm, message, " " + title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                DialogResult result = MessageBox.Show(this, message, " " + title, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (result == DialogResult.No) e.Cancel = true;
             }
             if (!e.Cancel) this.CloseAllDocuments(false);
@@ -1155,14 +1248,21 @@ namespace FlashDevelop
                 PluginServices.DisposePlugins();
                 this.KillProcess();
                 this.SaveAllSettings();
-                /* Restart if requested */
-                if (this.restartRequested)
-                {
-                    this.restartRequested = false;
-                    Application.Restart();
-                }
             }
             else this.restartRequested = false;
+        }
+
+        /// <summary>
+        /// When form is closed restart if requested.
+        /// </summary>
+        public void OnMainFormClosed(Object sender, FormClosedEventArgs e)
+        {
+            if (this.restartRequested)
+            {
+                this.restartRequested = false;
+                Process.Start(Application.ExecutablePath);
+                Process.GetCurrentProcess().Kill();
+            }
         }
 
         /// <summary>
@@ -1281,7 +1381,7 @@ namespace FlashDevelop
             {
                 String saveChanges = TextHelper.GetString("Info.SaveChanges");
                 String saveChangesTitle = TextHelper.GetString("Title.SaveChanges");
-                DialogResult result = MessageBox.Show(Globals.MainForm, saveChanges, saveChangesTitle + " " + document.Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                DialogResult result = MessageBox.Show(this, saveChanges, saveChangesTitle + " " + document.Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (result == DialogResult.Yes)
                 {
                     if (document.IsUntitled)
@@ -1359,9 +1459,9 @@ namespace FlashDevelop
             ITabbedDocument document = DocumentManager.FindDocument(sci);
             if (sci != null && document != null && document.IsEditable)
             {
-                Int32 column = sci.Column(sci.CurrentPos) + 1;
-                Int32 line = sci.LineFromPosition(sci.CurrentPos) + 1;
                 String statusText = " " + TextHelper.GetString("Info.StatusText");
+                String line = sci.CurrentLine + 1 + " / " + sci.LineCount;
+                String column = sci.Column(sci.CurrentPos) + 1 + " / " + (sci.Column(sci.LineEndPosition(sci.CurrentLine)) + 1);
                 var oldOS = this.OSVersion.Major < 6; // Vista is 6.0 and ok...
                 String file = oldOS ? PathHelper.GetCompactPath(sci.FileName) : sci.FileName;
                 String eol = (sci.EOLMode == 0) ? "CR+LF" : ((sci.EOLMode == 1) ? "CR" : "LF");
@@ -1388,7 +1488,17 @@ namespace FlashDevelop
             String[] files = Regex.Split(data.Substring(1, data.Length - 2), "\" \"");
             foreach (String file in files)
             {
-                if (File.Exists(file)) this.OpenEditableDocument(file);
+                if (File.Exists(file))
+                {
+                    DockContent doc = this.OpenEditableDocument(file);
+                    if (doc == null || Control.ModifierKeys == Keys.Control) return;
+                    DockContent drop = DocumentManager.FindDocument(sci) as DockContent;
+                    if (drop != null && drop.Pane != null)
+                    {
+                        doc.DockTo(drop.Pane, DockStyle.Fill, -1);
+                        doc.Activate();
+                    }
+                }
             }
         }
 
@@ -1403,7 +1513,7 @@ namespace FlashDevelop
             if (te.Handled) return; // Let plugin handle this...
             String dlgTitle = TextHelper.GetString("Title.ConfirmDialog");
             String message = TextHelper.GetString("Info.MakeReadOnlyWritable");
-            if (MessageBox.Show(Globals.MainForm, message, dlgTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            if (MessageBox.Show(this, message, dlgTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 ScintillaManager.MakeFileWritable(sci);
             }
@@ -1451,7 +1561,7 @@ namespace FlashDevelop
         /// </summary>
         public Boolean PreFilterMessage(ref Message m)
         {
-            if (m.Msg == 0x20a) // WM_MOUSEWHEEL
+            if (Win32.ShouldUseWin32() && m.Msg == 0x20a) // WM_MOUSEWHEEL
             {
                 Int32 x = unchecked((short)(long)m.LParam);
                 Int32 y = unchecked((short)((long)m.LParam >> 16));
@@ -1500,7 +1610,7 @@ namespace FlashDevelop
                     else if (keyData == (Keys.Control | Keys.X)) return false;
                     else if (keyData == (Keys.Control | Keys.A)) return false;
                     else if (keyData == (Keys.Control | Keys.Z)) return false;
-                    else if (keyData == (Keys.Control | Keys.V)) return false;
+                    else if (keyData == (Keys.Control | Keys.Y)) return false;
                 }
                 /**
                 * Process special key combinations and allow "chaining" of 
@@ -1545,19 +1655,19 @@ namespace FlashDevelop
         }
 
         /// <summary>
-        /// Updates the MainForms title automaticly
+        /// Updates the MainForm's title automatically
         /// </summary>
         public void OnUpdateMainFormDialogTitle()
         {
             IProject project = PluginBase.CurrentProject;
             ITabbedDocument document = this.CurrentDocument;
-            if (project != null) this.Text = project.Name + " - FlashDevelop";
+            if (project != null) this.Text = project.Name + " - " + DistroConfig.DISTRIBUTION_NAME;
             else if (document != null && document.IsEditable)
             {
                 String file = Path.GetFileName(document.FileName);
-                this.Text = file + " - FlashDevelop";
+                this.Text = file + " - " + DistroConfig.DISTRIBUTION_NAME;
             }
-            else this.Text = "FlashDevelop";
+            else this.Text = DistroConfig.DISTRIBUTION_NAME;
         }
 
         /// <summary>
@@ -1620,6 +1730,105 @@ namespace FlashDevelop
         }
 
         /// <summary>
+        /// Finds the specified composed/ready image that is automatically adjusted according to the theme.
+        /// <para/>
+        /// If you make a copy of the image returned by this method, the copy will not be automatically adjusted.
+        /// </summary>
+        public Image FindImage(String data)
+        {
+            return FindImage(data, true);
+        }
+
+        /// <summary>
+        /// Finds the specified composed/ready image.
+        /// <para/>
+        /// If you make a copy of the image returned by this method, the copy will not be automatically adjusted, even if <code>autoAdjusted</code> is <code>true</code>.
+        /// </summary>
+        public Image FindImage(String data, Boolean autoAdjusted)
+        {
+            try
+            {
+                lock (this) return ImageManager.GetComposedBitmap(data, autoAdjusted);
+            }
+            catch (Exception ex)
+            {
+                ErrorManager.ShowError(ex);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Finds the specified composed/ready image that is automatically adjusted according to the theme.
+        /// The image size is always 16x16.
+        /// <para/>
+        /// If you make a copy of the image returned by this method, the copy will not be automatically adjusted.
+        /// </summary>
+        public Image FindImage16(String data)
+        {
+            return FindImage16(data, true);
+        }
+
+        /// <summary>
+        /// Finds the specified composed/ready image. The image size is always 16x16.
+        /// <para/>
+        /// If you make a copy of the image returned by this method, the copy will not be automatically adjusted, even if <code>autoAdjusted</code> is <code>true</code>.
+        /// </summary>
+        public Image FindImage16(String data, Boolean autoAdjusted)
+        {
+            try
+            {
+                lock (this) return ImageManager.GetComposedBitmapSize16(data, autoAdjusted);
+            }
+            catch (Exception ex)
+            {
+                ErrorManager.ShowError(ex);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Finds the specified composed/ready image and returns a copy of the image that has its color adjusted.
+        /// This method is typically used for populating a <see cref="ImageList"/> object.
+        /// <para/>
+        /// Equivalent to calling <code>ImageSetAdjust(FindImage(data, false))</code>.
+        /// </summary>
+        public Image FindImageAndSetAdjust(String data)
+        {
+            return ImageSetAdjust(FindImage(data, false));
+        }
+
+        /// <summary>
+        /// Returns a copy of the specified image that has its color adjusted.
+        /// </summary>
+        public Image ImageSetAdjust(Image image)
+        {
+            return ImageManager.SetImageAdjustment(image);
+        }
+
+        /// <summary>
+        /// Gets a copy of the image that gets automatically adjusted according to the theme.
+        /// </summary>
+        public Image GetAutoAdjustedImage(Image image)
+        {
+            return ImageManager.GetAutoAdjustedImage(image);
+        }
+
+        /// <summary>
+        /// Adjusts all images for different themes.
+        /// </summary>
+        public void AdjustAllImages()
+        {
+            ImageManager.AdjustAllImages();
+            ImageListManager.RefreshAll();
+
+            for (int i = 0, length = LayoutManager.PluginPanels.Count; i < length; i++)
+            {
+                DockablePanel panel = LayoutManager.PluginPanels[i] as DockablePanel;
+                if (panel != null) panel.RefreshIcon();
+            }
+        }
+        
+        /// <summary>
         /// Themes the controls from the parent
         /// </summary>
         public void ThemeControls(Object parent)
@@ -1636,11 +1845,54 @@ namespace FlashDevelop
         }
 
         /// <summary>
+        /// Gets a theme property color with a fallback
+        /// </summary>
+        public Color GetThemeColor(String id, Color fallback)
+        {
+            Color color = ThemeManager.GetThemeColor(id);
+            if (color != Color.Empty) return color;
+            else return fallback;
+        }
+
+        /// <summary>
         /// Gets a theme property value
         /// </summary>
         public String GetThemeValue(String id)
         {
             return ThemeManager.GetThemeValue(id);
+        }
+
+        /// <summary>
+        /// Gets a theme property value with a fallback
+        /// </summary>
+        public String GetThemeValue(String id, String fallback)
+        {
+            String value = ThemeManager.GetThemeValue(id);
+            if (!String.IsNullOrEmpty(value)) return value;
+            else return fallback;
+        }
+
+        /// <summary>
+        /// Gets a theme flag value.
+        /// </summary>
+        public Boolean GetThemeFlag(String id)
+        {
+            return GetThemeFlag(id, false);
+        }
+
+        /// <summary>
+        /// Gets a theme flag value with a fallback.
+        /// </summary>
+        public Boolean GetThemeFlag(String id, Boolean fallback)
+        {
+            String value = ThemeManager.GetThemeValue(id);
+            if (String.IsNullOrEmpty(value)) return fallback;
+            switch (value.ToLower())
+            {
+                case "true": return true;
+                case "false": return false;
+                default: return fallback;
+            }
         }
 
         /// <summary>
@@ -1669,13 +1921,21 @@ namespace FlashDevelop
         }
 
         /// <summary>
-        /// Gets the specified item's shortcut keys
+        /// Gets the specified item's shortcut keys.
         /// </summary>
         public Keys GetShortcutItemKeys(String id)
         {
             ShortcutItem item = ShortcutManager.GetRegisteredItem(id);
-            if (item != null) return item.Custom;
-            else return Keys.None;
+            return item == null ? Keys.None : item.Custom;
+        }
+
+        /// <summary>
+        /// Gets the specified item's id.
+        /// </summary>
+        public String GetShortcutItemId(Keys keys)
+        {
+            ShortcutItem item = ShortcutManager.GetRegisteredItem(keys);
+            return item == null ? string.Empty : item.Id;
         }
 
         /// <summary>
@@ -1695,22 +1955,20 @@ namespace FlashDevelop
         }
 
         /// <summary>
-        /// Finds the specified composed/ready image
+        /// Registers a new secondary menu item with the shortcut manager
         /// </summary>
-        public Image FindImage(String data)
+        public void RegisterSecondaryItem(String id, ToolStripItem item)
         {
-            try
-            {
-                lock (this)
-                {
-                    return ImageManager.GetComposedBitmap(data);
-                }
-            }
-            catch (Exception ex)
-            {
-                ErrorManager.ShowError(ex);
-                return null;
-            }
+            ShortcutManager.RegisterSecondaryItem(id, item);
+        }
+
+        /// <summary>
+        /// Updates a registered secondary menu item in the shortcut manager
+        /// - should be called when the tooltip changes.
+        /// </summary>
+        public void ApplySecondaryShortcut(ToolStripItem item)
+        {
+            ShortcutManager.ApplySecondaryShortcut(item);
         }
 
         /// <summary>
@@ -1736,6 +1994,16 @@ namespace FlashDevelop
                 ErrorDialog.Show(new Exception(message));
             }
             else ErrorDialog.Show(ex);
+        }
+
+        /// <summary>
+        /// Show a message to the user to restart FD
+        /// </summary>
+        public void RestartRequired()
+        {
+            if (this.restartButton != null) this.restartButton.Visible = true;
+            String message = TextHelper.GetString("Info.RequiresRestart");
+            TraceManager.Add(message);
         }
 
         /// <summary>
@@ -1796,7 +2064,7 @@ namespace FlashDevelop
                     OpenDocumentFromParameters(args[i]);
                 }
             }
-            Win32.RestoreWindow(this.Handle);
+            if (Win32.ShouldUseWin32()) Win32.RestoreWindow(this.Handle);
             /**
             * Notify plugins about start arguments
             */
@@ -1807,7 +2075,7 @@ namespace FlashDevelop
         /// <summary>
         /// 
         /// </summary>
-        private void OpenDocumentFromParameters(string file)
+        private void OpenDocumentFromParameters(String file)
         {
             Match openParams = Regex.Match(file, "@([0-9]+)($|:([0-9]+)$)"); // path@line:col
             if (openParams.Success)
@@ -1845,23 +2113,24 @@ namespace FlashDevelop
         }
 
         /// <summary>
-		/// Closes all open documents with an option: exceptCurrent
-		/// </summary>
+        /// Closes all open documents with an option: exceptCurrent
+        /// </summary>
         public void CloseAllDocuments(Boolean exceptCurrent)
         {
-            Int32 closeIndex = 0;
-            Int32 documentCount = this.Documents.Length;
+            CloseAllDocuments(exceptCurrent, false);
+        }
+        public void CloseAllDocuments(Boolean exceptCurrent, Boolean exceptOtherPanes)
+        {
             ITabbedDocument current = this.CurrentDocument;
+            DockPane currentPane = (current == null) ? null : current.DockHandler.PanelPane;
             this.closeAllCanceled = false; this.closingAll = true;
-            for (Int32 i = 0; i < documentCount; i++)
+            var documents = new List<ITabbedDocument>(Documents);
+            foreach (var document in documents)
             {
-                ITabbedDocument document = this.Documents[closeIndex];
-                if (exceptCurrent)
-                {
-                    if (document != current) document.Close();
-                    else closeIndex = 1;
-                }
-                else document.Close();
+                Boolean close = true;
+                if (exceptCurrent && document == current) close = false;
+                if (exceptOtherPanes && document.DockHandler.PanelPane != currentPane) close = false;
+                if (close) document.Close();
             }
             this.closingAll = false;
         }
@@ -1873,7 +2142,7 @@ namespace FlashDevelop
         {
             if (this.InvokeRequired)
             {
-                this.BeginInvoke((MethodInvoker)delegate { this.ApplyAllSettings(); });
+                this.BeginInvoke((MethodInvoker) this.ApplyAllSettings);
                 return;
             }
             ShortcutManager.ApplyAllShortcuts();
@@ -1948,6 +2217,15 @@ namespace FlashDevelop
         }
 
         /// <summary>
+        /// Gets the amount instances running
+        /// </summary>
+        public Int32 GetInstanceCount()
+        {
+            Process current = Process.GetCurrentProcess();
+            return Process.GetProcessesByName(current.ProcessName).Length;
+        }
+
+        /// <summary>
         /// Sets the text to find globally
         /// </summary>
         public void SetFindText(Object sender, String text)
@@ -1979,8 +2257,8 @@ namespace FlashDevelop
         #region Click Handlers
 
         /// <summary>
-		/// Creates a new blank document
-		/// </summary>
+        /// Creates a new blank document
+        /// </summary>
         public void New(Object sender, EventArgs e)
         {
             String fileName = DocumentManager.GetNewDocumentName(null);
@@ -2128,6 +2406,11 @@ namespace FlashDevelop
                 Int32 count = this.openFileDialog.FileNames.Length;
                 for (Int32 i = 0; i < count; i++)
                 {
+                    if (encMode == 0) // Detect 8bit encoding...
+                    {
+                        Int32 codepage = FileHelper.GetFileCodepage(openFileDialog.FileNames[i]);
+                        encoding = Encoding.GetEncoding(codepage);
+                    }
                     this.OpenEditableDocument(openFileDialog.FileNames[i], encoding, false);
                 }
             }
@@ -2174,6 +2457,15 @@ namespace FlashDevelop
         }
 
         /// <summary>
+        /// Clears invalid entries from the old documents list
+        /// </summary>
+        public void CleanReopenList(Object sender, System.EventArgs e)
+        {
+            FileHelper.FilterByExisting(this.appSettings.PreviousDocuments, true);
+            ButtonManager.PopulateReopenMenu();
+        }
+
+        /// <summary>
         /// Clears all entries from the old documents list
         /// </summary>
         public void ClearReopenList(Object sender, System.EventArgs e)
@@ -2191,7 +2483,7 @@ namespace FlashDevelop
             if (sci.CanPaste)
             {
                 // if clip is not line-based, then just do simple paste
-                if ((sci.SelTextSize > 0 && !sci.SelText.EndsWith("\n")) || !Clipboard.GetText().EndsWith("\n") || Clipboard.ContainsData("MSDEVColumnSelect")) sci.Paste();
+                if ((sci.SelTextSize > 0 && !sci.SelText.EndsWith('\n')) || !Clipboard.GetText().EndsWith('\n') || Clipboard.ContainsData("MSDEVColumnSelect")) sci.Paste();
                 else
                 {
                     sci.BeginUndoAction();
@@ -2425,7 +2717,7 @@ namespace FlashDevelop
                 for (Int32 i = 0; i < documents.Length; i++)
                 {
                     ITabbedDocument current = documents[i];
-                    if (current.IsEditable && current.IsModified && !current.IsUntitled && current.Text.EndsWith(filter))
+                    if (current.IsEditable && current.IsModified && !current.IsUntitled && current.Text.EndsWithOrdinal(filter))
                     {
                         current.Save();
                         current.IsModified = false;
@@ -2449,19 +2741,19 @@ namespace FlashDevelop
         }
 
         /// <summary>
-        /// Closes all open documents
+        /// Closes all open documents in the current pane
         /// </summary>
         public void CloseAll(Object sender, System.EventArgs e)
         {
-            this.CloseAllDocuments(false);
+            this.CloseAllDocuments(false, true);
         }
 
         /// <summary>
-        /// Closes all open documents exept the current
+        /// Closes all open documents except the current in the current pane
         /// </summary>
         public void CloseOthers(Object sender, System.EventArgs e)
         {
-            this.CloseAllDocuments(true);
+            this.CloseAllDocuments(true, true);
         }
 
         /// <summary>
@@ -2480,7 +2772,7 @@ namespace FlashDevelop
             ScintillaControl sci = Globals.SciControl;
             String extension = Path.GetExtension(sci.FileName);
             String filename = DocumentManager.GetNewDocumentName(extension);
-            DockContent document = this.CreateEditableDocument(filename, sci.Text, sci.CodePage);
+            DockContent document = this.CreateEditableDocument(filename, sci.Text, sci.Encoding.CodePage);
             ((TabbedDocument)document).IsModified = true;
         }
 
@@ -2554,7 +2846,8 @@ namespace FlashDevelop
         /// </summary>
         public void GoTo(Object sender, System.EventArgs e)
         {
-            this.gotoDialog.Show();
+            if (!this.gotoDialog.Visible) this.gotoDialog.Show();
+            else this.gotoDialog.Activate();
         }
 
         /// <summary>
@@ -2582,7 +2875,8 @@ namespace FlashDevelop
         /// </summary>
         public void FindAndReplace(Object sender, System.EventArgs e)
         {
-            this.frInDocDialog.Show();
+            if (!this.frInDocDialog.Visible) this.frInDocDialog.Show();
+            else this.frInDocDialog.Activate();
         }
 
         /// <summary>
@@ -2592,13 +2886,12 @@ namespace FlashDevelop
         {
             ToolStripItem button = (ToolStripItem)sender;
             String file = ((ItemData)button.Tag).Tag;
-
-            ((Form)PluginBase.MainForm).BeginInvoke((MethodInvoker)delegate
+            this.BeginInvoke((MethodInvoker)delegate
             {
                 OpenEditableDocument(file);
             });
-
-            this.frInDocDialog.Show();
+            if (!this.frInDocDialog.Visible) this.frInDocDialog.Show();
+            else this.frInDocDialog.Activate();
         }
 
         /// <summary>
@@ -2606,7 +2899,8 @@ namespace FlashDevelop
         /// </summary>
         public void FindAndReplaceInFiles(Object sender, System.EventArgs e)
         {
-            this.frInFilesDialog.Show();
+            if (!this.frInFilesDialog.Visible) this.frInFilesDialog.Show();
+            else this.frInFilesDialog.Activate();
         }
 
         /// <summary>
@@ -2616,7 +2910,8 @@ namespace FlashDevelop
         {
             ToolStripItem button = (ToolStripItem)sender;
             String path = ((ItemData)button.Tag).Tag;
-            this.frInFilesDialog.Show(); // Show first..
+            if (!this.frInFilesDialog.Visible) this.frInFilesDialog.Show(); // Show first..
+            else this.frInFilesDialog.Activate();
             this.frInFilesDialog.SetFindPath(path);
         }
 
@@ -2665,7 +2960,7 @@ namespace FlashDevelop
         /// </summary>
         public void ShowSettings(Object sender, System.EventArgs e)
         {
-            SettingDialog.Show("FlashDevelop", "");
+            SettingDialog.Show(DistroConfig.DISTRIBUTION_NAME, "");
         }
 
         /// <summary>
@@ -2725,7 +3020,7 @@ namespace FlashDevelop
                 String zipLog = String.Empty;
                 String zipFile = String.Empty;
                 Boolean requiresRestart = false;
-                Boolean silentInstall = MainForm.Silent;
+                Boolean silentInstall = Silent;
                 ToolStripItem button = (ToolStripItem)sender;
                 String[] chunks = (((ItemData)button.Tag).Tag).Split(';');
                 if (chunks.Length > 1)
@@ -2755,6 +3050,10 @@ namespace FlashDevelop
                                 fdpath += ".new";
                                 requiresRestart = true;
                             }
+                            else if (ext == ".dll" || ext == ".fdb" || ext == ".fdl")
+                            {
+                                requiresRestart = true;
+                            }
                             zipLog += "Extract: " + fdpath + "\r\n";
                             String dirPath = Path.GetDirectoryName(fdpath);
                             if (!Directory.Exists(dirPath)) Directory.CreateDirectory(dirPath);
@@ -2775,14 +3074,16 @@ namespace FlashDevelop
                         }
                     }
                     String finish = TextHelper.GetString("Info.ZipExtractDone");
+                    String restart = TextHelper.GetString("Info.RequiresRestart");
                     if (requiresRestart)
                     {
                         zipLog += "Restart required.\r\n";
-                        finish += "\n" + TextHelper.GetString("Info.RequiresRestart");
+                        if (!silentInstall) finish += "\n" + restart;
+                        this.RestartRequired();
                     }
                     String logFile = Path.Combine(PathHelper.BaseDir, "Extensions.log");
                     File.AppendAllText(logFile, zipLog + "Done.\r\n\r\n", Encoding.UTF8);
-                    ErrorManager.ShowInfo(finish);
+                    if (!silentInstall) ErrorManager.ShowInfo(finish);
                 }
             }
             catch (Exception ex)
@@ -2801,7 +3102,7 @@ namespace FlashDevelop
                 String zipLog = String.Empty;
                 String zipFile = String.Empty;
                 Boolean requiresRestart = false;
-                Boolean silentRemove = MainForm.Silent;
+                Boolean silentRemove = Silent;
                 List<String> removeDirs = new List<String>();
                 ToolStripItem button = (ToolStripItem)sender;
                 String[] chunks = (((ItemData)button.Tag).Tag).Split(';');
@@ -2858,14 +3159,16 @@ namespace FlashDevelop
                         }
                     }
                     String finish = TextHelper.GetString("Info.ZipRemoveDone");
+                    String restart = TextHelper.GetString("Info.RequiresRestart");
                     if (requiresRestart)
                     {
-                        zipLog += "Restart required.\r\n";
-                        finish += "\n" + TextHelper.GetString("Info.RequiresRestart");
+                        zipLog += "Restart required.\r\n";                        
+                        if (!silentRemove) finish += "\n" + restart;
+                        this.RestartRequired();
                     }
                     String logFile = Path.Combine(PathHelper.BaseDir, "Extensions.log");
                     File.AppendAllText(logFile, zipLog + "Done.\r\n\r\n", Encoding.UTF8);
-                    ErrorManager.ShowInfo(finish);
+                    if (!silentRemove) ErrorManager.ShowInfo(finish);
                 }
             }
             catch (Exception ex)
@@ -2891,13 +3194,29 @@ namespace FlashDevelop
             {
                 ToolStripItem button = (ToolStripItem)sender;
                 String url = this.ProcessArgString(((ItemData)button.Tag).Tag);
-                DockContent document = this.CreateCustomDocument(browser);
+                this.CreateCustomDocument(browser);
                 if (url.Trim() != "") browser.WebBrowser.Navigate(url);
                 else browser.WebBrowser.GoHome();
             }
             else browser.WebBrowser.GoHome();
         }
-        
+
+        /// <summary>
+        /// Opens the home page in browser
+        /// </summary>
+        public void ShowHome(Object sender, System.EventArgs e)
+        {
+            this.CallCommand("Browse", DistroConfig.DISTRIBUTION_HOME);
+        }
+
+        /// <summary>
+        /// Opens the help page in browser
+        /// </summary>
+        public void ShowHelp(Object sender, System.EventArgs e)
+        {
+            this.CallCommand("Browse", DistroConfig.DISTRIBUTION_HELP);
+        }
+
         /// <summary>
         /// Opens the arguments dialog
         /// </summary>
@@ -2911,7 +3230,7 @@ namespace FlashDevelop
         /// </summary>
         public void CheckUpdates(Object sender, System.EventArgs e)
         {
-            UpdateDialog.Show();
+            UpdateDialog.Show(false);
         }
 
         /// <summary>
@@ -2948,8 +3267,7 @@ namespace FlashDevelop
         public void ToggleBookmark(Object sender, System.EventArgs e)
         {
             ScintillaControl sci = Globals.SciControl;
-            Int32 line = sci.LineFromPosition(sci.CurrentPos);
-            MarkerManager.ToggleMarker(sci, 0, line);
+            MarkerManager.ToggleMarker(sci, 0, sci.CurrentLine);
         }
 
         /// <summary>
@@ -2958,8 +3276,7 @@ namespace FlashDevelop
         public void NextBookmark(Object sender, System.EventArgs e)
         {
             ScintillaControl sci = Globals.SciControl;
-            Int32 line = sci.LineFromPosition(sci.CurrentPos);
-            MarkerManager.NextMarker(sci, 0, line);
+            MarkerManager.NextMarker(sci, 0, sci.CurrentLine);
         }
 
         /// <summary>
@@ -2968,8 +3285,7 @@ namespace FlashDevelop
         public void PrevBookmark(Object sender, System.EventArgs e)
         {
             ScintillaControl sci = Globals.SciControl;
-            Int32 line = sci.LineFromPosition(sci.CurrentPos);
-            MarkerManager.PreviousMarker(sci, 0, line);
+            MarkerManager.PreviousMarker(sci, 0, sci.CurrentLine);
         }
 
         /// <summary>
@@ -3042,7 +3358,6 @@ namespace FlashDevelop
                 ToolStripItem button = (ToolStripItem)sender;
                 ScintillaControl sci = Globals.SciControl;
                 Int32 encMode = Convert.ToInt32(((ItemData)button.Tag).Tag);
-                sci.CodePage = ScintillaManager.SelectCodePage(encMode);
                 sci.Encoding = Encoding.GetEncoding(encMode);
                 this.OnScintillaControlUpdateControl(sci);
                 this.OnDocumentModify(this.CurrentDocument);
@@ -3057,7 +3372,6 @@ namespace FlashDevelop
         {
             try
             {
-                ToolStripItem button = (ToolStripItem)sender;
                 ScintillaControl sci = Globals.SciControl;
                 sci.SaveBOM = !sci.SaveBOM;
                 this.OnScintillaControlUpdateControl(sci);
@@ -3079,10 +3393,9 @@ namespace FlashDevelop
                 ToolStripItem button = (ToolStripItem)sender;
                 ScintillaControl sci = Globals.SciControl;
                 Int32 encMode = Convert.ToInt32(((ItemData)button.Tag).Tag);
-                Int32 curMode = sci.CodePage; // From current..
+                Int32 curMode = sci.Encoding.CodePage; // From current..
                 String converted = DataConverter.ChangeEncoding(sci.Text, curMode, encMode);
                 sci.Encoding = Encoding.GetEncoding(encMode);
-                sci.CodePage = ScintillaManager.SelectCodePage(encMode);
                 sci.Text = converted; // Set after codepage change
                 this.OnScintillaControlUpdateControl(sci);
                 this.OnDocumentModify(this.CurrentDocument);
@@ -3144,13 +3457,13 @@ namespace FlashDevelop
                 ScintillaControl sci = Globals.SciControl;
                 if (sci.SelText.Length > 0)
                 {
-                    isAsterisk = sci.SelText.StartsWith("#");
-                    if (sci.SelText.StartsWith("0x") && sci.SelText.Length == 8)
+                    isAsterisk = sci.SelText.StartsWith('#');
+                    if (sci.SelText.StartsWithOrdinal("0x") && sci.SelText.Length == 8)
                     {
                         Int32 convertedColor = DataConverter.StringToColor(sci.SelText);
                         this.colorDialog.Color = ColorTranslator.FromWin32(convertedColor);
                     }
-                    else if (sci.SelText.StartsWith("#") && sci.SelText.Length == 7)
+                    else if (sci.SelText.StartsWith('#') && sci.SelText.Length == 7)
                     {
                         String foundColor = sci.SelText.Replace("#", "0x");
                         Int32 convertedColor = DataConverter.StringToColor(foundColor);
@@ -3256,7 +3569,19 @@ namespace FlashDevelop
             {
                 ScintillaControl sci = Globals.SciControl;
                 ToolStripItem button = (ToolStripItem)sender;
-                ScintillaManager.ChangeSyntax(((ItemData)button.Tag).Tag, sci);
+                string language = ((ItemData) button.Tag).Tag;
+                if (sci.ConfigurationLanguage.Equals(language)) return; // already using this syntax
+                ScintillaManager.ChangeSyntax(language, sci);
+                string extension = sci.GetFileExtension();
+                if (!string.IsNullOrEmpty(extension))
+                {
+                    string title = TextHelper.GetString("Title.RememberExtensionDialog"); 
+                    string message = TextHelper.GetString("Info.RememberExtensionDialog"); 
+                    if (MessageBox.Show(message, title, MessageBoxButtons.YesNo) == DialogResult.Yes)
+                    {
+                        sci.SaveExtensionToSyntaxConfig(extension);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -3270,8 +3595,7 @@ namespace FlashDevelop
         public void SortLines(Object sender, System.EventArgs e)
         {
             ScintillaControl sci = Globals.SciControl;
-            Int32 position = sci.CurrentPos;
-            Int32 curLine = sci.LineFromPosition(position);
+            Int32 curLine = sci.LineFromPosition(sci.SelectionStart);
             Int32 endLine = sci.LineFromPosition(sci.SelectionEnd);
             List<String> lines = new List<String>();
             for (Int32 line = curLine; line < endLine + 1; ++line)
@@ -3280,14 +3604,12 @@ namespace FlashDevelop
             }
             lines.Sort(CompareLines);
             StringBuilder result = new StringBuilder();
-            string end = lines[lines.Count - 1];
-            foreach (String s in lines )
+            foreach (String s in lines)
             {
                 result.Append(s);
-                if (s != end) result.Append("\n");
             }
             Int32 selStart = sci.PositionFromLine(curLine);
-            Int32 selEnd = sci.PositionFromLine(endLine) + sci.GetLine(endLine).Length;
+            Int32 selEnd = sci.PositionFromLine(endLine) + sci.MBSafeTextLength(sci.GetLine(endLine));
             sci.SetSel(selStart, selEnd);
             sci.ReplaceSel(result.ToString());
         }
@@ -3298,8 +3620,7 @@ namespace FlashDevelop
         public void SortLineGroups(Object sender, System.EventArgs e)
         {
             ScintillaControl sci = Globals.SciControl;
-            Int32 position = sci.CurrentPos;
-            Int32 curLine = sci.LineFromPosition(position);
+            Int32 curLine = sci.LineFromPosition(sci.SelectionStart);
             Int32 endLine = sci.LineFromPosition(sci.SelectionEnd);
             List<List<String>> lineLists = new List<List<String>>();
             List<String> curList = new List<String>();
@@ -3307,9 +3628,10 @@ namespace FlashDevelop
             for (Int32 line = curLine; line < endLine + 1; ++line)
             {
                 String lineText = sci.GetLine(line);
-                if (CompareLines(lineText, "\r") == 0)
+                if (lineText.Trim() == "")
                 {
                     curList.Sort(CompareLines);
+                    curList.Add(lineText);
                     curList = new List<String>();
                     lineLists.Add(curList);
                     continue;
@@ -3318,17 +3640,15 @@ namespace FlashDevelop
             }
             curList.Sort(CompareLines);
             StringBuilder result = new StringBuilder();
-            List<String> end = lineLists[lineLists.Count - 1];
             foreach (List<String> l in lineLists)
             {
                 foreach (String s in l)
                 {
                     result.Append(s);
                 }
-                if (l != end) result.Append("\r");
             }
             Int32 selStart = sci.PositionFromLine(curLine);
-            Int32 selEnd = sci.PositionFromLine(endLine) + sci.GetLine(endLine).Length;
+            Int32 selEnd = sci.PositionFromLine(endLine) + sci.MBSafeTextLength(sci.GetLine(endLine));
             sci.SetSel(selStart, selEnd);
             sci.ReplaceSel(result.ToString());
         }
@@ -3418,7 +3738,7 @@ namespace FlashDevelop
                 {
                     if (sci.LineLength(line) == 0) text = "";
                     else text = sci.GetLine(line).TrimStart();
-                    if (text.StartsWith(lineComment))
+                    if (text.StartsWithOrdinal(lineComment))
                     {
                         position = sci.LineIndentPosition(line);
                         sci.SetSel(position, position + lineComment.Length);
@@ -3448,24 +3768,29 @@ namespace FlashDevelop
         /// </summary>
         public void CommentSelection(Object sender, System.EventArgs e)
         {
+            CommentSelection();
+        }
+        private bool? CommentSelection()
+        {
             ScintillaControl sci = Globals.SciControl;
             Int32 selEnd = sci.SelectionEnd;
             Int32 selStart = sci.SelectionStart;
             String commentEnd = ScintillaManager.GetCommentEnd(sci.ConfigurationLanguage);
             String commentStart = ScintillaManager.GetCommentStart(sci.ConfigurationLanguage);
-            if (sci.SelText.StartsWith(commentStart) && sci.SelText.EndsWith(commentEnd))
+            if (sci.SelText.StartsWithOrdinal(commentStart) && sci.SelText.EndsWithOrdinal(commentEnd))
             {
                 sci.BeginUndoAction();
                 try
                 {
-                    Int32 indexLenght = sci.SelText.Length - commentStart.Length - commentEnd.Length;
-                    String withoutComment = sci.SelText.Substring(commentStart.Length, indexLenght);
+                    Int32 indexLength = sci.SelText.Length - commentStart.Length - commentEnd.Length;
+                    String withoutComment = sci.SelText.Substring(commentStart.Length, indexLength);
                     sci.ReplaceSel(withoutComment);
                 }
                 finally
                 {
                     sci.EndUndoAction();
                 }
+                return false;
             }
             else if (sci.SelText.Length > 0)
             {
@@ -3479,7 +3804,9 @@ namespace FlashDevelop
                 {
                     sci.EndUndoAction();
                 }
+                return true;
             }
+            return null;
         }
 
         /// <summary>
@@ -3511,7 +3838,7 @@ namespace FlashDevelop
                     sci.SetSel(start + 1, end);
                     // remove comment
                     String selText = sci.SelText;
-                    if (selText.StartsWith(commentStart) && selText.EndsWith(commentEnd))
+                    if (selText.StartsWithOrdinal(commentStart) && selText.EndsWithOrdinal(commentEnd))
                     {
                         sci.SetSel(end - commentEnd.Length, end);
                         sci.ReplaceSel("");
@@ -3543,6 +3870,12 @@ namespace FlashDevelop
             ScintillaControl sci = Globals.SciControl;
             String lineComment = ScintillaManager.GetLineComment(sci.ConfigurationLanguage);
             Int32 position = sci.CurrentPos;
+            // try doing a block comment on the current line instead (xml, html...)
+            if (lineComment == "")
+            {
+                ToggleBlockOnCurrentLine(sci);
+                return;
+            }
             Int32 curLine = sci.LineFromPosition(position);
             Int32 startPosInLine = position - sci.PositionFromLine(curLine);
             Int32 startLine = sci.LineFromPosition(sci.SelectionStart);
@@ -3559,16 +3892,34 @@ namespace FlashDevelop
             {
                 if (sci.LineLength(line) == 0) text = "";
                 else text = sci.GetLine(line).TrimStart();
-                if (!text.StartsWith(lineComment))
+                if (!text.StartsWithOrdinal(lineComment))
                 {
                     containsCodeLine = true;
                     break;
                 }
                 line++;
             }
-
             if (containsCodeLine) this.CommentLine(null, null);
             else this.UncommentLine(null, null);
+        }
+        private void ToggleBlockOnCurrentLine(ScintillaControl sci)
+        {
+            Int32 selStart = sci.SelectionStart;
+            Int32 indentPos = sci.LineIndentPosition(sci.CurrentLine);
+            Int32 lineEndPos = sci.LineEndPosition(sci.CurrentLine);
+            bool afterBlockStart = sci.CurrentPos > indentPos;
+            bool afterBlockEnd = sci.CurrentPos >= lineEndPos;
+            sci.SelectionStart = indentPos;
+            sci.SelectionEnd = lineEndPos;
+            bool ? added = CommentSelection();
+            if (added == null) return;
+            int factor = (bool)added ? 1 : -1;
+            String commentEnd = ScintillaManager.GetCommentEnd(sci.ConfigurationLanguage);
+            String commentStart = ScintillaManager.GetCommentStart(sci.ConfigurationLanguage);
+            // preserve cursor pos
+            if (afterBlockStart) selStart += commentStart.Length * factor;
+            if (afterBlockEnd) selStart += commentEnd.Length * factor;
+            sci.SetSel(selStart, selStart);
         }
 
         /// <summary>
@@ -3593,14 +3944,18 @@ namespace FlashDevelop
             if (ofd.ShowDialog(this) == DialogResult.OK)
             {
                 String ext = Path.GetExtension(ofd.FileName).ToLower();
-                if (ext == ".fdi") ThemeManager.LoadTheme(ofd.FileName);
+                if (ext == ".fdi")
+                {
+                    ThemeManager.LoadTheme(ofd.FileName);
+                    ThemeManager.WalkControls(this);
+                }
                 else
                 {
                     this.CallCommand("ExtractZip", ofd.FileName + ";true");
                     String currentTheme = Path.Combine(PathHelper.ThemesDir, "CURRENT");
                     if (File.Exists(currentTheme)) ThemeManager.LoadTheme(currentTheme);
+                    ThemeManager.WalkControls(this);
                     this.RefreshSciConfig();
-                    this.Refresh();
                 }
             }
         }
@@ -3722,7 +4077,7 @@ namespace FlashDevelop
                 {
                     String message = TextHelper.GetString("Info.RunningProcess");
                     TraceManager.Add(message + " " + args, (Int32)TraceType.ProcessStart);
-                    if (args.ToLower().EndsWith(".bat"))
+                    if (args.ToLower().EndsWithOrdinal(".bat"))
                     {
                         Process bp = new Process();
                         bp.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
@@ -3751,12 +4106,6 @@ namespace FlashDevelop
         {
             try
             {
-                /*if (this.processRunner.IsRunning)
-                {
-                    String message = TextHelper.GetString("Info.ProcessAlreadyRunning");
-                    TraceManager.Add(message, (Int32)TraceType.Error);
-                    return;
-                }*/
                 ToolStripItem button = (ToolStripItem)sender;
                 String args = this.ProcessArgString(((ItemData)button.Tag).Tag);
                 Int32 position = args.IndexOf(';'); // Position of the arguments
@@ -3816,7 +4165,7 @@ namespace FlashDevelop
         /// </summary>
         public void KillProcess(Object sender, System.EventArgs e)
         {
-            KillProcess();
+            this.KillProcess();
         }
 
         /// <summary>
@@ -3837,10 +4186,10 @@ namespace FlashDevelop
         {
             try
             {
-                String dirMarker = "\\FlashDevelop\\";
                 SaveFileDialog sfd = new SaveFileDialog();
                 sfd.AddExtension = true; sfd.DefaultExt = "fdz";
                 sfd.Filter = TextHelper.GetString("FlashDevelop.Info.ZipFilter");
+                String dirMarker = "\\" + DistroConfig.DISTRIBUTION_NAME + "\\";
                 if (sfd.ShowDialog(this) == DialogResult.OK)
                 {
                     List<String> settingFiles = new List<String>();
@@ -3854,7 +4203,7 @@ namespace FlashDevelop
                     zipFile.BeginUpdate();
                     foreach (String settingFile in settingFiles)
                     {
-                        Int32 index = settingFile.IndexOf(dirMarker) + dirMarker.Length;
+                        Int32 index = settingFile.IndexOfOrdinal(dirMarker) + dirMarker.Length;
                         zipFile.Add(settingFile, "$(BaseDir)\\" + settingFile.Substring(index));
                     }
                     zipFile.CommitUpdate();
@@ -3878,8 +4227,7 @@ namespace FlashDevelop
             {
                 Host host = new Host();
                 String[] args = file.Split(new Char[1]{';'});
-                if (args.Length == 1 || String.IsNullOrEmpty(args[1]))
-                    return; // no file selected / the open file dialog was cancelled
+                if (args.Length == 1 || String.IsNullOrEmpty(args[1])) return; // no file selected / the open file dialog was cancelled
                 if (args[0] == "Internal") host.ExecuteScriptInternal(args[1], false);
                 else if (args[0] == "Development") host.ExecuteScriptInternal(args[1], true);
                 else host.ExecuteScriptExternal(file);
@@ -3907,8 +4255,11 @@ namespace FlashDevelop
         /// </summary>
         public void Restart(Object sender, EventArgs e)
         {
-            this.restartRequested = true;
-            this.Close();
+            if (this.GetInstanceCount() == 1)
+            {
+                this.restartRequested = true;
+                this.Close();
+            }
         }
 
         #endregion

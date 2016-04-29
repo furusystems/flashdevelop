@@ -9,36 +9,36 @@ using PluginCore.DockPanelSuite;
 
 namespace WeifenLuo.WinFormsUI.Docking
 {
-	public class FloatWindow : Form, INestedPanesContainer, IDockDragSource
-	{
-		private NestedPaneCollection m_nestedPanes;
-		internal const int WM_CHECKDISPOSE = (int)(Win32.Msgs.WM_USER + 1);
+    public class FloatWindow : Form, INestedPanesContainer, IDockDragSource
+    {
+        private NestedPaneCollection m_nestedPanes;
+        internal const int WM_CHECKDISPOSE = (int)(Win32.Msgs.WM_USER + 1);
 
-		internal protected FloatWindow(DockPanel dockPanel, DockPane pane)
-		{
-			InternalConstruct(dockPanel, pane, false, Rectangle.Empty);
-		}
+        internal protected FloatWindow(DockPanel dockPanel, DockPane pane)
+        {
+            InternalConstruct(dockPanel, pane, false, Rectangle.Empty);
+        }
 
-		internal protected FloatWindow(DockPanel dockPanel, DockPane pane, Rectangle bounds)
-		{
-			InternalConstruct(dockPanel, pane, true, bounds);
-		}
+        internal protected FloatWindow(DockPanel dockPanel, DockPane pane, Rectangle bounds)
+        {
+            InternalConstruct(dockPanel, pane, true, bounds);
+        }
 
-		private void InternalConstruct(DockPanel dockPanel, DockPane pane, bool boundsSpecified, Rectangle bounds)
-		{
-			if (dockPanel == null)
-				throw(new ArgumentNullException(Strings.FloatWindow_Constructor_NullDockPanel));
+        private void InternalConstruct(DockPanel dockPanel, DockPane pane, bool boundsSpecified, Rectangle bounds)
+        {
+            if (dockPanel == null)
+                throw(new ArgumentNullException(Strings.FloatWindow_Constructor_NullDockPanel));
 
-			m_nestedPanes = new NestedPaneCollection(this);
+            m_nestedPanes = new NestedPaneCollection(this);
 
-			FormBorderStyle = FormBorderStyle.SizableToolWindow;
-			ShowInTaskbar = false;
+            FormBorderStyle = FormBorderStyle.SizableToolWindow;
+            ShowInTaskbar = false;
             if (dockPanel.RightToLeft != RightToLeft)
                 RightToLeft = dockPanel.RightToLeft;
             if (RightToLeftLayout != dockPanel.RightToLeftLayout)
                 RightToLeftLayout = dockPanel.RightToLeftLayout;
-			
-			SuspendLayout();
+            
+            SuspendLayout();
             if (boundsSpecified)
             {
                 Bounds = bounds;
@@ -50,135 +50,142 @@ namespace WeifenLuo.WinFormsUI.Docking
                 Size = dockPanel.DefaultFloatWindowSize;
             }
 
-			m_dockPanel = dockPanel;
-			Owner = DockPanel.FindForm();
-			DockPanel.AddFloatWindow(this);
-			if (pane != null)
-				pane.FloatWindow = this;
+            m_dockPanel = dockPanel;
+            Owner = DockPanel.FindForm();
+            DockPanel.AddFloatWindow(this);
+            if (pane != null)
+                pane.FloatWindow = this;
 
-			ResumeLayout();
-		}
+            ResumeLayout();
+        }
 
-		protected override void Dispose(bool disposing)
-		{
-			if (disposing)
-			{
-				if (DockPanel != null)
-					DockPanel.RemoveFloatWindow(this);
-				m_dockPanel = null;
-			}
-			base.Dispose(disposing);
-		}
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (DockPanel != null)
+                    DockPanel.RemoveFloatWindow(this);
+                m_dockPanel = null;
+            }
+            base.Dispose(disposing);
+        }
 
-		private bool m_allowEndUserDocking = true;
-		public bool AllowEndUserDocking
-		{
-			get	{	return m_allowEndUserDocking;	}
-			set	{	m_allowEndUserDocking = value;	}
-		}
+        private bool m_allowEndUserDocking = true;
+        public bool AllowEndUserDocking
+        {
+            get {   return m_allowEndUserDocking;   }
+            set {   m_allowEndUserDocking = value;  }
+        }
 
-		public NestedPaneCollection NestedPanes
-		{
-			get	{	return m_nestedPanes;	}
-		}
+        private bool m_doubleClickTitleBarToDock = true;
+        public bool DoubleClickTitleBarToDock
+        {
+            get { return m_doubleClickTitleBarToDock; }
+            set { m_doubleClickTitleBarToDock = value; }
+        }
 
-		public VisibleNestedPaneCollection VisibleNestedPanes
-		{
-			get	{	return NestedPanes.VisibleNestedPanes;	}
-		}
+        public NestedPaneCollection NestedPanes
+        {
+            get {   return m_nestedPanes;   }
+        }
 
-		private DockPanel m_dockPanel;
-		public DockPanel DockPanel
-		{
-			get	{	return m_dockPanel;	}
-		}
+        public VisibleNestedPaneCollection VisibleNestedPanes
+        {
+            get {   return NestedPanes.VisibleNestedPanes;  }
+        }
 
-		public DockState DockState
-		{
-			get	{	return DockState.Float;	}
-		}
-	
-		public bool IsFloat
-		{
-			get	{	return DockState == DockState.Float;	}
-		}
+        private DockPanel m_dockPanel;
+        public DockPanel DockPanel
+        {
+            get {   return m_dockPanel; }
+        }
 
-		internal bool IsDockStateValid(DockState dockState)
-		{
-			foreach (DockPane pane in NestedPanes)
-				foreach (IDockContent content in pane.Contents)
-					if (!DockHelper.IsDockStateValid(dockState, content.DockHandler.DockAreas))
-						return false;
+        public DockState DockState
+        {
+            get {   return DockState.Float; }
+        }
+    
+        public bool IsFloat
+        {
+            get {   return DockState == DockState.Float;    }
+        }
 
-			return true;
-		}
+        internal bool IsDockStateValid(DockState dockState)
+        {
+            foreach (DockPane pane in NestedPanes)
+                foreach (IDockContent content in pane.Contents)
+                    if (!DockHelper.IsDockStateValid(dockState, content.DockHandler.DockAreas))
+                        return false;
 
-		protected override void OnActivated(EventArgs e)
-		{
-			DockPanel.FloatWindows.BringWindowToFront(this);
-			base.OnActivated (e);
-		}
+            return true;
+        }
 
-		protected override void OnLayout(LayoutEventArgs levent)
-		{
-			VisibleNestedPanes.Refresh();
-			RefreshChanges();
+        protected override void OnActivated(EventArgs e)
+        {
+            DockPanel.FloatWindows.BringWindowToFront(this);
+            base.OnActivated (e);
+        }
+
+        protected override void OnLayout(LayoutEventArgs levent)
+        {
+            VisibleNestedPanes.Refresh();
+            RefreshChanges();
             Visible = (VisibleNestedPanes.Count > 0);
             SetText();
 
-			base.OnLayout(levent);
-		}
+            base.OnLayout(levent);
+        }
 
 
         [SuppressMessage("Microsoft.Globalization", "CA1303:DoNotPassLiteralsAsLocalizedParameters", MessageId = "System.Windows.Forms.Control.set_Text(System.String)")]
         internal void SetText()
-		{
-			DockPane theOnlyPane = (VisibleNestedPanes.Count == 1) ? VisibleNestedPanes[0] : null;
+        {
+            DockPane theOnlyPane = (VisibleNestedPanes.Count == 1) ? VisibleNestedPanes[0] : null;
 
-			if (theOnlyPane == null)
-				Text = " ";	// use " " instead of string.Empty because the whole title bar will disappear when ControlBox is set to false.
-			else if (theOnlyPane.ActiveContent == null)
-				Text = " ";
-			else
-				Text = theOnlyPane.ActiveContent.DockHandler.TabText;
-		}
+            if (theOnlyPane == null)
+                Text = " "; // use " " instead of string.Empty because the whole title bar will disappear when ControlBox is set to false.
+            else if (theOnlyPane.ActiveContent == null)
+                Text = " ";
+            else
+                Text = theOnlyPane.ActiveContent.DockHandler.TabText;
+        }
 
-		protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
-		{
+        protected override void SetBoundsCore(int x, int y, int width, int height, BoundsSpecified specified)
+        {
             Rectangle rectWorkArea = SystemInformation.VirtualScreen;
 
-			if (y + height > rectWorkArea.Bottom)
-				y -= (y + height) - rectWorkArea.Bottom;
+            if (y + height > rectWorkArea.Bottom)
+                y -= (y + height) - rectWorkArea.Bottom;
 
-			if (y < rectWorkArea.Top)
-				y += rectWorkArea.Top - y;
+            if (y < rectWorkArea.Top)
+                y += rectWorkArea.Top - y;
 
-			base.SetBoundsCore (x, y, width, height, specified);
-		}
+            base.SetBoundsCore (x, y, width, height, specified);
+        }
 
         [SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
-		protected override void WndProc(ref Message m)
-		{
-			if (m.Msg == (int)Win32.Msgs.WM_NCLBUTTONDOWN)
-			{
-				if (IsDisposed)
-					return;
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == (int)Win32.Msgs.WM_NCLBUTTONDOWN)
+            {
+                if (IsDisposed)
+                    return;
 
-				uint result = NativeMethods.SendMessage(this.Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, (uint)m.LParam);
-				if (result == 2 && DockPanel.AllowEndUserDocking && this.AllowEndUserDocking)	// HITTEST_CAPTION
-				{
-					Activate();
-					m_dockPanel.BeginDrag(this);
-				}
-				else
-					base.WndProc(ref m);
+                uint result = !NativeMethods.ShouldUseWin32() ? 0 : NativeMethods.SendMessage(this.Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, (uint)m.LParam);
+                if (result == 2 && DockPanel.AllowEndUserDocking && this.AllowEndUserDocking)   // HITTEST_CAPTION
+                {
+                    Activate();
+                    m_dockPanel.BeginDrag(this);
+                }
+                else
+                    base.WndProc(ref m);
 
-				return;
-			}
+                return;
+            }
             else if (m.Msg == (int)Win32.Msgs.WM_NCRBUTTONDOWN)
             {
-                uint result = NativeMethods.SendMessage(this.Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, (uint)m.LParam);
-                if (result == 2)	// HITTEST_CAPTION
+                uint result = !NativeMethods.ShouldUseWin32() ? 0 : NativeMethods.SendMessage(this.Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, (uint)m.LParam);
+                if (result == 2)    // HITTEST_CAPTION
                 {
                     DockPane theOnlyPane = (VisibleNestedPanes.Count == 1) ? VisibleNestedPanes[0] : null;
                     if (theOnlyPane != null && theOnlyPane.ActiveContent != null)
@@ -222,8 +229,8 @@ namespace WeifenLuo.WinFormsUI.Docking
             }
             else if (m.Msg == (int)Win32.Msgs.WM_NCLBUTTONDBLCLK)
             {
-                uint result = NativeMethods.SendMessage(this.Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, (uint)m.LParam);
-                if (result != 2)	// HITTEST_CAPTION
+                uint result = !DoubleClickTitleBarToDock || !NativeMethods.ShouldUseWin32() ? 0 : NativeMethods.SendMessage(this.Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, (uint)m.LParam);
+                if (result != 2)    // HITTEST_CAPTION
                 {
                     base.WndProc(ref m);
                     return;
@@ -251,44 +258,44 @@ namespace WeifenLuo.WinFormsUI.Docking
                 return;
             }
 
-			base.WndProc(ref m);
-		}
+            base.WndProc(ref m);
+        }
 
-		internal void RefreshChanges()
-		{
+        internal void RefreshChanges()
+        {
             if (IsDisposed) return;
             if (VisibleNestedPanes.Count == 0)
-			{
-				ControlBox = true;
-				return;
-			}
+            {
+                ControlBox = true;
+                return;
+            }
 
-			for (int i=VisibleNestedPanes.Count - 1; i>=0; i--)
-			{
-				DockContentCollection contents = VisibleNestedPanes[i].Contents;
-				for (int j=contents.Count - 1; j>=0; j--)
-				{
-					IDockContent content = contents[j];
-					if (content.DockHandler.DockState != DockState.Float)
-						continue;
+            for (int i=VisibleNestedPanes.Count - 1; i>=0; i--)
+            {
+                DockContentCollection contents = VisibleNestedPanes[i].Contents;
+                for (int j=contents.Count - 1; j>=0; j--)
+                {
+                    IDockContent content = contents[j];
+                    if (content.DockHandler.DockState != DockState.Float)
+                        continue;
 
-					if (content.DockHandler.CloseButton)
-					{
-						ControlBox = true;
-						return;
-					}
-				}
-			}
-			ControlBox = false;
-		}
+                    if (content.DockHandler.CloseButton)
+                    {
+                        ControlBox = true;
+                        return;
+                    }
+                }
+            }
+            ControlBox = false;
+        }
 
-		public virtual Rectangle DisplayingRectangle
-		{
-			get	{	return ClientRectangle;	}
-		}
+        public virtual Rectangle DisplayingRectangle
+        {
+            get {   return ClientRectangle; }
+        }
 
-		internal void TestDrop(IDockDragSource dragSource, DockOutlineBase dockOutline)
-		{
+        internal void TestDrop(IDockDragSource dragSource, DockOutlineBase dockOutline)
+        {
             if (VisibleNestedPanes.Count == 1)
             {
                 DockPane pane = VisibleNestedPanes[0];
@@ -297,10 +304,15 @@ namespace WeifenLuo.WinFormsUI.Docking
 
                 Point ptMouse = Control.MousePosition;
                 uint lParam = Win32Helper.MakeLong(ptMouse.X, ptMouse.Y);
-                if (NativeMethods.SendMessage(Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, lParam) == (uint)Win32.HitTest.HTCAPTION)
-                    dockOutline.Show(VisibleNestedPanes[0], -1);
+                if (NativeMethods.ShouldUseWin32())
+                {
+                    if (NativeMethods.SendMessage(Handle, (int)Win32.Msgs.WM_NCHITTEST, 0, lParam) == (uint)Win32.HitTest.HTCAPTION)
+                    {
+                        dockOutline.Show(VisibleNestedPanes[0], -1);
+                    }
+                }
             }
-		}
+        }
 
         #region IDockDragSource Members
 

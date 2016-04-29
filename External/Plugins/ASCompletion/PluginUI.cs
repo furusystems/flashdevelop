@@ -6,18 +6,19 @@
  */
 
 using System;
-using System.Windows.Forms;
-using System.Text;
 using System.Collections.Generic;
-using PluginCore;
-using PluginCore.Managers;
-using ASCompletion.Model;
-using ASCompletion.Context;
-using ASCompletion.Settings;
-using PluginCore.Localization;
 using System.Drawing;
 using System.Reflection;
+using System.Text;
+using System.Windows.Forms;
+using ASCompletion.Context;
+using ASCompletion.Model;
+using ASCompletion.Settings;
+using PluginCore;
 using PluginCore.Helpers;
+using PluginCore.Localization;
+using PluginCore.Managers;
+using PluginCore.Controls;
 
 namespace ASCompletion
 {
@@ -77,7 +78,7 @@ namespace ASCompletion
 
         public ToolStripMenuItem LookupMenuItem;
         private System.ComponentModel.IContainer components;
-        public System.Windows.Forms.ImageList treeIcons;
+        public ImageListManager treeIcons;
         private FixedTreeView outlineTree;
         private System.Timers.Timer tempoClick;
 
@@ -111,44 +112,9 @@ namespace ASCompletion
         private void InitializeControls()
         {
             InitializeComponent();
+            treeIcons.ColorDepth = ColorDepth.Depth32Bit;
             treeIcons.ImageSize = ScaleHelper.Scale(new Size(16, 16));
-            treeIcons.Images.AddRange( new Bitmap[] {
-                new Bitmap(GetStream("FilePlain.png")),
-                new Bitmap(GetStream("FolderClosed.png")),
-                new Bitmap(GetStream("FolderOpen.png")),
-                new Bitmap(GetStream("CheckAS.png")),
-                new Bitmap(GetStream("QuickBuild.png")),
-                new Bitmap(GetStream("Package.png")),
-                new Bitmap(GetStream("Interface.png")),
-                new Bitmap(GetStream("Intrinsic.png")),
-                new Bitmap(GetStream("Class.png")),
-                new Bitmap(GetStream("Variable.png")),
-                new Bitmap(GetStream("VariableProtected.png")),
-                new Bitmap(GetStream("VariablePrivate.png")),
-                new Bitmap(GetStream("VariableStatic.png")),
-                new Bitmap(GetStream("VariableStaticProtected.png")),
-                new Bitmap(GetStream("VariableStaticPrivate.png")),
-                new Bitmap(GetStream("Const.png")),
-                new Bitmap(GetStream("ConstProtected.png")),
-                new Bitmap(GetStream("ConstPrivate.png")),
-                new Bitmap(GetStream("Const.png")),
-                new Bitmap(GetStream("ConstProtected.png")),
-                new Bitmap(GetStream("ConstPrivate.png")),
-                new Bitmap(GetStream("Method.png")),
-                new Bitmap(GetStream("MethodProtected.png")),
-                new Bitmap(GetStream("MethodPrivate.png")),
-                new Bitmap(GetStream("MethodStatic.png")),
-                new Bitmap(GetStream("MethodStaticProtected.png")),
-                new Bitmap(GetStream("MethodStaticPrivate.png")),
-                new Bitmap(GetStream("Property.png")),
-                new Bitmap(GetStream("PropertyProtected.png")),
-                new Bitmap(GetStream("PropertyPrivate.png")),
-                new Bitmap(GetStream("PropertyStatic.png")),
-                new Bitmap(GetStream("PropertyStaticProtected.png")),
-                new Bitmap(GetStream("PropertyStaticPrivate.png")),
-                new Bitmap(GetStream("Template.png")),
-                new Bitmap(GetStream("Declaration.png"))
-            });
+            treeIcons.Initialize(TreeIcons_Populate);
 
             toolStrip.Renderer = new DockPanelStripRenderer();
             toolStrip.ImageScalingSize = ScaleHelper.Scale(new Size(16, 16));
@@ -169,20 +135,65 @@ namespace ASCompletion
             outlineTree.HotTracking = true;
             outlineTree.TabIndex = 1;
             outlineTree.NodeClicked += new FixedTreeView.NodeClickedHandler(ClassTreeSelect);
-            outlineTree.KeyDown += new System.Windows.Forms.KeyEventHandler(this.FindProcTxtKeyDown);
             outlineTree.AfterSelect += new TreeViewEventHandler(outlineTree_AfterSelect);
             outlineTree.ShowNodeToolTips = true;
             Controls.Add(outlineTree);
             outlineTree.BringToFront();
+            ScrollBarEx.Attach(outlineTree);
+        }
+
+        private void TreeIcons_Populate(object sender, EventArgs e)
+        {
+            treeIcons.Images.AddRange(new Image[]
+            {
+                GetImage("FilePlain.png"),
+                GetImage("FolderClosed.png"),
+                GetImage("FolderOpen.png"),
+                GetImage("CheckAS.png"),
+                GetImage("QuickBuild.png"),
+                GetImage("Package.png"),
+                GetImage("Interface.png"),
+                GetImage("Intrinsic.png"),
+                GetImage("Class.png"),
+                GetImage("Variable.png"),
+                GetImage("VariableProtected.png"),
+                GetImage("VariablePrivate.png"),
+                GetImage("VariableStatic.png"),
+                GetImage("VariableStaticProtected.png"),
+                GetImage("VariableStaticPrivate.png"),
+                GetImage("Const.png"),
+                GetImage("ConstProtected.png"),
+                GetImage("ConstPrivate.png"),
+                GetImage("Const.png"),
+                GetImage("ConstProtected.png"),
+                GetImage("ConstPrivate.png"),
+                GetImage("Method.png"),
+                GetImage("MethodProtected.png"),
+                GetImage("MethodPrivate.png"),
+                GetImage("MethodStatic.png"),
+                GetImage("MethodStaticProtected.png"),
+                GetImage("MethodStaticPrivate.png"),
+                GetImage("Property.png"),
+                GetImage("PropertyProtected.png"),
+                GetImage("PropertyPrivate.png"),
+                GetImage("PropertyStatic.png"),
+                GetImage("PropertyStaticProtected.png"),
+                GetImage("PropertyStaticPrivate.png"),
+                GetImage("Template.png"),
+                GetImage("Declaration.png")
+            });
+        }
+
+        public static Image GetImage(String name)
+        {
+            return PluginBase.MainForm.ImageSetAdjust(Image.FromStream(GetStream(name)));
         }
 
         public static System.IO.Stream GetStream(String name)
         {
             String prefix = "ASCompletion.Icons.";
-            List<string> resources = new List<string>(Assembly.GetExecutingAssembly().GetManifestResourceNames());
             Assembly assembly = Assembly.GetExecutingAssembly();
-            var stream = assembly.GetManifestResourceStream(prefix + name);
-            return stream;
+            return assembly.GetManifestResourceStream(prefix + name);
         }
 
         private void InitializeTexts()
@@ -271,7 +282,7 @@ namespace ASCompletion
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PluginUI));
-            this.treeIcons = new System.Windows.Forms.ImageList(this.components);
+            this.treeIcons = new ImageListManager(this.components);
             this.toolStrip = new PluginCore.Controls.ToolStripEx();
             this.sortDropDown = new System.Windows.Forms.ToolStripDropDownButton();
             this.noneItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -361,7 +372,6 @@ namespace ASCompletion
             this.findProcTxt.Size = new System.Drawing.Size(100, 25);
             this.findProcTxt.Padding = new System.Windows.Forms.Padding(0, 0, 1, 0);
             this.findProcTxt.Leave += new System.EventHandler(this.FindProcTxtLeave);
-            this.findProcTxt.KeyDown += new System.Windows.Forms.KeyEventHandler(this.FindProcTxtKeyDown);
             this.findProcTxt.Enter += new System.EventHandler(this.FindProcTxtEnter);
             this.findProcTxt.Click += new System.EventHandler(this.FindProcTxtEnter);
             this.findProcTxt.TextChanged += new System.EventHandler(this.FindProcTxtChanged);
@@ -497,7 +507,7 @@ namespace ASCompletion
             if (currentHighlight != null)
             {
                 //currentHighlight.BackColor = System.Drawing.SystemColors.Window;
-                currentHighlight.ForeColor = System.Drawing.SystemColors.WindowText;
+                currentHighlight.ForeColor = outlineTree.ForeColor;
             }
             outlineTree.SelectedNode = currentHighlight = node;
             if (currentHighlight != null)
@@ -506,7 +516,8 @@ namespace ASCompletion
                     outlineTree.State.highlight = currentHighlight.FullPath;
 
                 //currentHighlight.BackColor = System.Drawing.Color.LightGray;
-                currentHighlight.ForeColor = System.Drawing.Color.Blue;
+                currentHighlight.ForeColor = PluginBase.MainForm.GetThemeColor("TreeView.Highlight", SystemColors.Highlight);
+
             }
         }
 
@@ -534,7 +545,7 @@ namespace ASCompletion
                     }
                     foreach (MemberModel member in aFile.Members)
                     {
-                        sb.Append(member.Flags.ToString()).Append(member.ToString());
+                        sb.Append(member.Flags).Append(member);
                         lines.Add(member.LineFrom);
                         names.Add(member.Name);
                     }
@@ -543,7 +554,7 @@ namespace ASCompletion
                         if (string.IsNullOrEmpty(aClass.ExtendsType))
                             aClass.ResolveExtends();
 
-                        sb.Append(aClass.Flags.ToString()).Append(aClass.FullName);
+                        sb.Append(aClass.Flags).Append(aClass.FullName);
                         sb.Append(aClass.ExtendsType);
                         if (aClass.Implements != null)
                             foreach (string implements in aClass.Implements)
@@ -552,13 +563,13 @@ namespace ASCompletion
                         names.Add(aClass.Name);
                         foreach (MemberModel member in aClass.Members)
                         {
-                            sb.Append(member.Flags.ToString()).Append(member.ToString());
+                            sb.Append(member.Flags).Append(member);
                             lines.Add(member.LineFrom);
                             names.Add(member.Name);
                         }
                     }
-
-                    foreach (MemberModel region in aFile.Regions) {
+                    foreach (MemberModel region in aFile.Regions)
+                    {
                         sb.Append(region.Name);
                         lines.Add(region.LineFrom);
                         names.Add(region.Name);
@@ -574,9 +585,10 @@ namespace ASCompletion
                 }
                 else
                 {
+                    int prevLinesCount = prevLines.Count;
                     for (int i = 0, count = lines.Count; i < count; i++)
                     {
-                        if (lines[i] == prevLines[i]) continue;
+                        if (i < prevLinesCount && lines[i] == prevLines[i]) continue;
                         UpdateTree(aFile, names, lines);
                         prevLines = lines;
                         break;
@@ -593,7 +605,7 @@ namespace ASCompletion
         {
             //TraceManager.Add("Outline refresh...");
             outlineTree.BeginStatefulUpdate();
-            if (prevChecksum.StartsWith(aFile.FileName))
+            if (prevChecksum.StartsWithOrdinal(aFile.FileName))
                 aFile.OutlineState = outlineTree.State;
 
             try
@@ -626,7 +638,7 @@ namespace ASCompletion
                     nodes = node.Nodes;
                     foreach (MemberModel import in aFile.Imports)
                     {
-                        if (import.Type.EndsWith(".*"))
+                        if (import.Type.EndsWithOrdinal(".*"))
                             nodes.Add(new TreeNode(import.Type, ICON_PACKAGE, ICON_PACKAGE));
                         else
                         {
@@ -708,11 +720,13 @@ namespace ASCompletion
                     return;
 
                 var mapping = new Dictionary<string, string>();
-
+                int prevLinesCount = prevLines.Count;
                 for (int i = 0, count = newLines.Count; i < count; i++)
                 {
                     string name = modelNames[i];
-                    mapping[name + "@" + prevLines[i]] = name + "@" + newLines[i];
+                    string value = name + "@" + newLines[i];
+                    if (i < prevLinesCount) mapping[name + "@" + prevLines[i]] = value;
+                    else mapping[value] = value;
                 }
 
                 var tree = new Stack<TreeNodeCollection>();
@@ -743,7 +757,7 @@ namespace ASCompletion
             //if ((aClass.Flags & FlagType.TypeDef) > 0 && aClass.Members.Count == 0)
             //    folder.Text = "Defines"; // TODO need a better word I guess
 
-            while (aClass.ExtendsType != null && aClass.ExtendsType.Length > 0 
+            while (!string.IsNullOrEmpty(aClass.ExtendsType) 
                 && aClass.ExtendsType != "Object" 
                 && (!aClass.InFile.haXe || aClass.ExtendsType != "Dynamic"))
             {
@@ -991,6 +1005,7 @@ namespace ASCompletion
             sci.GotoPos(pos);
         }
 
+        // TODO: Refactor, doesn't make a lot of sense to have this feature inside the Panel
         public void SetLastLookupPosition(string file, int line, int column)
         {
             // store location
@@ -1015,7 +1030,7 @@ namespace ASCompletion
             {
                 int position = sci.PositionFromLine(location.line) + location.column;
                 sci.SetSel(position, position);
-                int line = sci.LineFromPosition(sci.CurrentPos);
+                int line = sci.CurrentLine;
                 sci.EnsureVisible(line);
                 int top = sci.FirstVisibleLine;
                 int middle = top + sci.LinesOnScreen / 2;
@@ -1035,11 +1050,13 @@ namespace ASCompletion
             if (hilight)
             {
                 node.EnsureVisible();
-                node.BackColor = System.Drawing.Color.LightSkyBlue;
+                node.BackColor = PluginBase.MainForm.GetThemeColor("TreeView.Highlight", SystemColors.Highlight);
+                node.ForeColor = PluginBase.MainForm.GetThemeColor("TreeView.HighlightText", SystemColors.HighlightText);
             }
             else
             {
-                node.BackColor = SystemColors.Window;
+                node.ForeColor = OutlineTree.ForeColor;
+                node.BackColor = OutlineTree.BackColor;
             }
         }
 
@@ -1049,7 +1066,7 @@ namespace ASCompletion
             {
                 return false;
             }
-            return (inputText.ToUpper().IndexOf(searchText) >= 0);
+            return (inputText.ToUpper().IndexOfOrdinal(searchText) >= 0);
         }
 
         private void HighlightAllMachingDeclaration(string text)
@@ -1058,7 +1075,7 @@ namespace ASCompletion
             {
                 TreeNodeCollection nodes = outlineTree.Nodes;
                 HilightDeclarationInGroup(nodes, text);
-                Win32.Scrolling.scrollToLeft(outlineTree);
+                if (Win32.ShouldUseWin32()) Win32.ScrollToLeft(outlineTree);
             }
             catch (Exception ex)
             {
@@ -1093,7 +1110,7 @@ namespace ASCompletion
             if (findProcTxt.Text == searchInvitation)
             {
                 findProcTxt.Text = "";
-                findProcTxt.ForeColor = System.Drawing.SystemColors.WindowText;
+                findProcTxt.ForeColor = PluginBase.MainForm.GetThemeColor("ToolStripTextBoxControl.ForeColor", SystemColors.WindowText);
             }
         }
 
@@ -1102,7 +1119,7 @@ namespace ASCompletion
             if (findProcTxt.Text == "")
             {
                 findProcTxt.Text = searchInvitation;
-                findProcTxt.ForeColor = System.Drawing.SystemColors.GrayText;
+                findProcTxt.ForeColor = PluginBase.MainForm.GetThemeColor("ToolStripTextBoxControl.GrayText", SystemColors.GrayText);
                 clearButton.Enabled = false;
             }
         }
@@ -1113,26 +1130,28 @@ namespace ASCompletion
             FindProcTxtLeave(null, null);
             outlineTree.Focus();
             if (PluginBase.MainForm.CurrentDocument.IsEditable)
+            {
                 PluginBase.MainForm.CurrentDocument.SciControl.Focus();
+            }
         }
 
-        /// <summary>
-        /// Go to the matched declaration on Enter - clear field on Escape
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        void FindProcTxtKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
+        // Update colors on start after theme engine
+        public void UpdateAfterTheme()
         {
-            if (e.KeyCode == Keys.Enter)
+            findProcTxt.ForeColor = PluginBase.MainForm.GetThemeColor("ToolStripTextBoxControl.GrayText", SystemColors.GrayText);
+        }
+
+        protected override Boolean ProcessDialogKey(Keys keyData)
+        {
+            if (keyData == Keys.Enter)
             {
                 if (outlineTree.Focused)
                 {
-                    e.Handled = true;
                     ClassTreeSelect(outlineTree, outlineTree.SelectedNode);
+                    return true;
                 }
                 else
                 {
-                    e.Handled = true;
                     if (findProcTxt.Text != searchInvitation)
                     {
                         TreeNode node = FindMatch(outlineTree.Nodes);
@@ -1143,14 +1162,21 @@ namespace ASCompletion
                         }
                         findProcTxt.Text = "";
                     }
+                    return true;
                 }
             }
-            else if (e.KeyCode == Keys.Escape)
+            else if (keyData == Keys.Escape)
             {
                 findProcTxt.Text = "";
                 FindProcTxtLeave(null, null);
                 outlineTree.Focus();
+                if (PluginBase.MainForm.CurrentDocument.IsEditable)
+                {
+                    PluginBase.MainForm.CurrentDocument.SciControl.Focus();
+                }
+                return true;
             }
+            return base.ProcessDialogKey(keyData);
         }
 
         /// <summary>
@@ -1162,8 +1188,7 @@ namespace ASCompletion
         {
             foreach (TreeNode node in nodes)
             {
-                if (node.BackColor == System.Drawing.Color.LightSkyBlue)
-                    return node;
+                if (node.BackColor == PluginBase.MainForm.GetThemeColor("TreeView.Highlight", SystemColors.Highlight)) return node;
                 if (node.Nodes.Count > 0)
                 {
                     TreeNode subnode = FindMatch(node.Nodes);
@@ -1172,7 +1197,9 @@ namespace ASCompletion
             }
             return null;
         }
+
         #endregion
+
     }
 
     #region Custom structures

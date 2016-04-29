@@ -1,22 +1,18 @@
 using System;
+using System.Drawing;
 using System.IO;
 using System.Text;
-using System.Drawing;
-using System.Collections;
-using System.Windows.Forms;
-using WeifenLuo.WinFormsUI;
-using PluginCore.Localization;
 using System.Text.RegularExpressions;
-using WeifenLuo.WinFormsUI.Docking;
-using PluginCore.Utilities;
-using PluginCore.Managers;
-using PluginCore.Helpers;
-using PluginCore.Controls;
+using System.Windows.Forms;
 using PluginCore;
+using PluginCore.Helpers;
+using PluginCore.Localization;
+using PluginCore.Utilities;
+using PluginCore.Controls;
 
 namespace FlashLogViewer
 {
-	public class PluginUI : DockPanelControl
+    public class PluginUI : DockPanelControl
     {
         private Form popupForm;
         private Boolean tracking;
@@ -30,37 +26,40 @@ namespace FlashLogViewer
         private ToolStripButton clearFilterButton;
         private ToolStripSeparator toolStripSeparator;
         private ToolStripSpringComboBox filterComboBox;
-        private ToolStripComboBox logComboBox;
+        private ToolStripComboBoxEx logComboBox;
         private DateTime policyLogWrited;
         private DateTime flashLogWrited;
         private PluginMain pluginMain;
-        private ImageList imageList;
         private String curLogFile;
         private Regex reWarning;
         private Regex reFilter;
         private Regex reError;
         private long lastPosition;
+        private Image toggleButtonImagePlay;
+        private Image toggleButtonImageStop;
         
-		public PluginUI(PluginMain pluginMain)
-		{
+        public PluginUI(PluginMain pluginMain)
+        {
+            this.AutoKeyHandling = true;
             this.Font = PluginBase.Settings.DefaultFont;
             this.pluginMain = pluginMain;
             this.InitializeSettings();
-			this.InitializeComponent();
+            this.InitializeComponent();
             this.InitializeContextMenu();
             this.InitializeGraphics();
             this.InitializeControls();
             this.UpdateMainRegexes();
-		}
+            ScrollBarEx.Attach(logTextBox);
+        }
 
-		#region Windows Forms Designer Generated Code
+        #region Windows Forms Designer Generated Code
 
-		/// <summary>
-		/// This method is required for Windows Forms designer support.
-		/// Do not change the method contents inside the source code editor. The Forms designer might
-		/// not be able to load this method if it was changed manually.
-		/// </summary>
-		private void InitializeComponent() 
+        /// <summary>
+        /// This method is required for Windows Forms designer support.
+        /// Do not change the method contents inside the source code editor. The Forms designer might
+        /// not be able to load this method if it was changed manually.
+        /// </summary>
+        private void InitializeComponent() 
         {
             this.toolStrip = new PluginCore.Controls.ToolStripEx();
             this.toggleButton = new System.Windows.Forms.ToolStripButton();
@@ -68,10 +67,10 @@ namespace FlashLogViewer
             this.clearFilterButton = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator = new System.Windows.Forms.ToolStripSeparator();
             this.viewLabel = new System.Windows.Forms.ToolStripLabel();
-            this.logComboBox = new System.Windows.Forms.ToolStripComboBox();
+            this.logComboBox = new System.Windows.Forms.ToolStripComboBoxEx();
             this.filterLabel = new System.Windows.Forms.ToolStripLabel();
             this.filterComboBox = new System.Windows.Forms.ToolStripSpringComboBox();
-            this.logTextBox = new System.Windows.Forms.RichTextBox();
+            this.logTextBox = new System.Windows.Forms.RichTextBoxEx();
             this.toolStrip.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -98,7 +97,7 @@ namespace FlashLogViewer
             // 
             // clearFilterButton
             //
-            this.clearFilterButton.Enabled = false;
+            this.clearFilterButton.Enabled = true;
             this.clearFilterButton.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
             this.clearFilterButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.clearFilterButton.Margin = new System.Windows.Forms.Padding(0, 1, 0, 1);
@@ -133,10 +132,10 @@ namespace FlashLogViewer
             this.logComboBox.Enabled = false;
             this.logComboBox.Items.AddRange(new Object[] { TextHelper.GetString("Label.FlashLog"), TextHelper.GetString("Label.PolicyLog") });
             this.logComboBox.Name = "logComboBox";
-            this.logComboBox.Size = new System.Drawing.Size(90, 28);
+            this.logComboBox.Size = new System.Drawing.Size(120, 28);
             this.logComboBox.SelectedIndex = 0;
             this.logComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            this.logComboBox.SelectedIndexChanged += new System.EventHandler(this.LogComboBoxIndexChanged);
+            this.logComboBox.FlatCombo.SelectedIndexChanged += new System.EventHandler(this.LogComboBoxIndexChanged);
             // 
             // filterLabel
             // 
@@ -147,7 +146,7 @@ namespace FlashLogViewer
             // 
             // filterComboBox
             //
-            this.filterComboBox.Enabled = false;
+            this.filterComboBox.Enabled = true;
             this.filterComboBox.Name = "filterComboBox";
             this.filterComboBox.Padding = new System.Windows.Forms.Padding(0, 0, 1, 0);
             this.filterComboBox.Size = new System.Drawing.Size(50, 28);
@@ -155,7 +154,7 @@ namespace FlashLogViewer
             // 
             // logTextBox
             // 
-            this.logTextBox.BackColor = System.Drawing.Color.White;
+            this.logTextBox.BackColor = System.Drawing.SystemColors.Window;
             this.logTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.logTextBox.DetectUrls = false;
             this.logTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -179,9 +178,9 @@ namespace FlashLogViewer
             this.ResumeLayout(false);
             this.PerformLayout();
 
-		}
+        }
 
-		#endregion
+        #endregion
 
         #region Methods And Event Handlers
         
@@ -256,16 +255,11 @@ namespace FlashLogViewer
         /// </summary>
         private void InitializeGraphics()
         {
-            this.imageList = new ImageList();
-            this.imageList.ColorDepth = ColorDepth.Depth32Bit;
-            this.imageList.TransparentColor = Color.Transparent;
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("151"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("147"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("56|8|2|4"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("153"));
-            this.clearFilterButton.Image = this.imageList.Images[3];
-            this.topMostButton.Image = this.imageList.Images[2];
-            this.toggleButton.Image = this.imageList.Images[1];
+            toggleButtonImageStop = PluginBase.MainForm.FindImage("151");
+            toggleButtonImagePlay = PluginBase.MainForm.FindImage("147");
+            this.clearFilterButton.Image = PluginBase.MainForm.FindImage("153");
+            this.topMostButton.Image = PluginBase.MainForm.FindImage("56|8|2|4");
+            this.toggleButton.Image = toggleButtonImagePlay;
         }
 
         /// <summary>
@@ -380,11 +374,11 @@ namespace FlashLogViewer
                 {
                     string line = s.ReadLine();
                     if (!this.PassesFilter(line)) continue;
-                    Color newColor = Color.Black;
+                    Color newColor = PluginBase.MainForm.GetThemeColor("FlashLogViewer.DebugColor", Color.Black);
                     if (colorize)
                     {
-                        if (reWarning.IsMatch(line)) newColor = Color.Orange;
-                        else if (reError.IsMatch(line)) newColor = Color.Red;
+                        if (reWarning.IsMatch(line)) newColor = PluginBase.MainForm.GetThemeColor("FlashLogViewer.WarningColor", Color.Orange);
+                        else if (reError.IsMatch(line)) newColor = PluginBase.MainForm.GetThemeColor("FlashLogViewer.ErrorColor", Color.Red);
                     }
                     if (newColor != currentColor)
                     {
@@ -397,7 +391,15 @@ namespace FlashLogViewer
                 lastPosition = s.BaseStream.Length;
                 s.Close();
             }
-            if (forceScroll) this.logTextBox.ScrollToCaret();
+            if (forceScroll)
+            {
+                try
+                {
+                    this.logTextBox.Select(this.logTextBox.TextLength, 0);
+                    this.logTextBox.ScrollToCaret();
+                }
+                catch { /* WineMod: not supported */ }
+            }
         }
 
         /// <summary>
@@ -408,9 +410,9 @@ namespace FlashLogViewer
             this.tracking = enable;
             this.refreshTimer.Enabled = this.tracking;
             this.refreshTimer.Interval = this.GetUpdateInterval();
-            this.toggleButton.Image = this.imageList.Images[(enable ? 0 : 1)];
+            this.toggleButton.Image = enable ? toggleButtonImageStop : toggleButtonImagePlay;
             this.toggleButton.ToolTipText = (enable ? TextHelper.GetString("ToolTip.StopTracking") : TextHelper.GetString("ToolTip.StartTracking"));
-            this.logComboBox.Enabled = this.filterComboBox.Enabled = this.clearFilterButton.Enabled = enable;
+            this.logComboBox.Enabled = enable;
             if (enable)
             {
                 this.lastPosition = 0;
@@ -434,7 +436,7 @@ namespace FlashLogViewer
                 this.popupForm.MinimumSize = new Size(350, 120);
                 this.popupForm.Text = TextHelper.GetString("Title.PluginPanel");
                 this.popupForm.FormClosed += new FormClosedEventHandler(this.PopupFormClosed);
-                this.popupForm.Icon = ImageKonverter.ImageToIcon(PluginBase.MainForm.FindImage("412"));
+                this.popupForm.Icon = ImageKonverter.ImageToIcon(PluginBase.MainForm.FindImage("412", false));
                 if (this.Settings.KeepPopupTopMost) this.popupForm.TopMost = true;
                 this.popupForm.Show();
             }
@@ -527,15 +529,16 @@ namespace FlashLogViewer
         /// </summary>
         private void FilterTextBoxTextChanged(Object sender, EventArgs e)
         {
+            if (!this.tracking) return;
             if (this.filterComboBox.Text.Length == 0) this.reFilter = null;
             else
             {
                 try
                 {
                     this.reFilter = new Regex(filterComboBox.Text, RegexOptions.IgnoreCase);
-                    this.filterComboBox.ForeColor = SystemColors.ControlText;
+                    this.filterComboBox.ForeColor = PluginBase.MainForm.GetThemeColor("ToolStripComboBoxControl.ForeColor", SystemColors.WindowText);
                 }
-                catch { this.filterComboBox.ForeColor = Color.Red; }
+                catch {}
             }
             this.lastPosition = 0;
             this.logTextBox.Clear();
@@ -553,7 +556,7 @@ namespace FlashLogViewer
             }
             catch 
             { 
-                this.Settings.RegexError = "Error #";
+                this.Settings.RegexError = "Error: ";
                 this.reError = new Regex(this.Settings.RegexError, RegexOptions.IgnoreCase);
             }
             try

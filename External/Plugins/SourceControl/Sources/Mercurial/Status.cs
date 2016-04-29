@@ -1,9 +1,8 @@
 ﻿using System;
-using System.IO;
-using System.Text;
 using System.Collections.Generic;
+using System.IO;
+using PluginCore;
 using PluginCore.Localization;
-using PluginCore.Utilities;
 using PluginCore.Managers;
 
 namespace SourceControl.Sources.Mercurial
@@ -33,7 +32,7 @@ namespace SourceControl.Sources.Mercurial
             {
                 foreach (IgnoreEntry ignore in ignores)
                 {
-                    if ((ignore.path == "" || path.StartsWith(ignore.path)) && ignore.regex.IsMatch(path))
+                    if ((ignore.path == "" || path.StartsWithOrdinal(ignore.path)) && ignore.regex.IsMatch(path))
                     {
                         found = root.MapPath(path.Substring(ignore.path.Length), VCItemStatus.Ignored);
                         return found;
@@ -50,7 +49,7 @@ namespace SourceControl.Sources.Mercurial
 
             temp = new StatusNode(".", VCItemStatus.Undefined);
             updatingPath = RootPath;
-            if (dirty != null) dirty = null;
+            dirty = null;
             ignores.Update();
 
             Run("status -A", updatingPath);
@@ -59,7 +58,11 @@ namespace SourceControl.Sources.Mercurial
         public bool SetPathDirty(string path)
         {
             if (path == null) return false;
-            if (dirty == null || dirty == "") { dirty = path; return true; }
+            if (string.IsNullOrEmpty(dirty))
+            {
+                dirty = path;
+                return true;
+            }
 
             char sep = Path.DirectorySeparatorChar;
             string[] p1 = dirty.Split(sep);
@@ -76,7 +79,7 @@ namespace SourceControl.Sources.Mercurial
             return true;
         }
 
-        override protected void runner_ProcessEnded(object sender, int exitCode)
+        override protected void Runner_ProcessEnded(object sender, int exitCode)
         {
             runner = null;
             if (exitCode != 0)
@@ -89,10 +92,10 @@ namespace SourceControl.Sources.Mercurial
             if (OnResult != null) OnResult(this);
         }
 
-        override protected void runner_Output(object sender, string line)
+        override protected void Runner_Output(object sender, string line)
         {
             int fileIndex = 0;
-            if (line.Length < fileIndex || line.Length < 3) return;
+            if (line.Length < 3) return;
             char c0 = line[0];
             char c1 = line[1];
 
@@ -106,7 +109,7 @@ namespace SourceControl.Sources.Mercurial
             else if (c0 == 'R' || c1 == 'R') s = VCItemStatus.Deleted;
 
             if (s == VCItemStatus.Unknown) return;
-            int p = line.IndexOf(" ");
+            int p = line.IndexOfOrdinal(" ");
             if (p > 0) line = line.Substring(p + 1);
             else line = line.Substring(fileIndex);
             temp.MapPath(line, s);

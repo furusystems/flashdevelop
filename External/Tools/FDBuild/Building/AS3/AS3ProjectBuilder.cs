@@ -31,7 +31,7 @@ namespace ProjectManager.Building.AS3
             : base(project, compilerPath)
         {
             this.project = project;
-			
+            
             DetectFlexSdk(compilerPath);
 
             bool mxmlcExists = File.Exists(mxmlcPath);
@@ -62,7 +62,7 @@ namespace ProjectManager.Building.AS3
         {
             flexsdkPath = ResolveFlexSdk(flexsdkPath);
             if (Path.GetFileName(flexsdkPath) == "bin")
-				flexsdkPath = Path.GetDirectoryName(flexsdkPath);
+                flexsdkPath = Path.GetDirectoryName(flexsdkPath);
 
             sdkPath = flexsdkPath;
             string libPath = Path.Combine(flexsdkPath, "lib");
@@ -153,7 +153,7 @@ namespace ProjectManager.Building.AS3
             }
 
             string envPath = Environment.ExpandEnvironmentVariables("%FLEX_HOME%");
-            if (!envPath.StartsWith("%"))
+            if (!envPath.StartsWith("%", StringComparison.Ordinal))
             {
                 if (!Directory.Exists(envPath))
                     Console.WriteLine("Environment path %FLEX_HOME% doesn't exist:\n" + envPath);
@@ -272,7 +272,7 @@ namespace ProjectManager.Building.AS3
                 string[] lines = output.Split('\n');
                 foreach (string line in lines)
                 {
-                    if (!line.StartsWith("Recompile:") && !line.StartsWith("Reason:"))
+                    if (!line.StartsWith("Recompile:", StringComparison.Ordinal) && !line.StartsWith("Reason:", StringComparison.Ordinal))
                         Console.Write(line);
                 }
                 foreach (string warning in warnings)

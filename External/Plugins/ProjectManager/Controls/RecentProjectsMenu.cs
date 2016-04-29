@@ -14,6 +14,8 @@ namespace ProjectManager.Controls
 
     public class RecentProjectsMenu : ToolStripMenuItem
     {
+        private ToolStripMenuItem cleanItemMenu;
+        private ToolStripMenuItem cleanItemToolbar;
         private ToolStripMenuItem clearItemMenu;
         private ToolStripMenuItem clearItemToolbar;
         public event ProjectEventHandler ProjectSelected;
@@ -22,14 +24,19 @@ namespace ProjectManager.Controls
         public RecentProjectsMenu() : base(TextHelper.GetString("Label.RecentProjects"))
         {
             ToolbarSelector = new ToolStripDropDownButton();
-            ToolbarSelector.Text = TextHelper.GetString("Label.RecentProjects").Replace("&", "");
+            ToolbarSelector.Text = TextHelper.GetStringWithoutMnemonics("Label.RecentProjects");
             ToolbarSelector.DisplayStyle = ToolStripItemDisplayStyle.Image;
             ToolbarSelector.Image = Icons.Project.Img;
             ToolbarSelector.Enabled = false;
-            string text = TextHelper.GetString("Label.ClearRecentProjects");
-            clearItemMenu = new ToolStripMenuItem(text);
+            string cleanLabel = TextHelper.GetString("Label.CleanRecentProjects");
+            cleanItemMenu = new ToolStripMenuItem(cleanLabel);
+            cleanItemMenu.Click += delegate { CleanAllItems(); };
+            cleanItemToolbar = new ToolStripMenuItem(cleanLabel);
+            cleanItemToolbar.Click += delegate { CleanAllItems(); };
+            string clearLabel = TextHelper.GetString("Label.ClearRecentProjects");
+            clearItemMenu = new ToolStripMenuItem(clearLabel);
             clearItemMenu.Click += delegate{ ClearAllItems(); };
-            clearItemToolbar = new ToolStripMenuItem(text);
+            clearItemToolbar = new ToolStripMenuItem(clearLabel);
             clearItemToolbar.Click += delegate { ClearAllItems(); };
             RebuildList();
         }
@@ -70,8 +77,10 @@ namespace ProjectManager.Controls
                 ToolbarSelector.DropDownItems.Add(BuildItem(projectPath, false));
             }
             DropDownItems.Add(new ToolStripSeparator());
+            DropDownItems.Add(cleanItemMenu);
             DropDownItems.Add(clearItemMenu);
             ToolbarSelector.DropDownItems.Add(new ToolStripSeparator());
+            ToolbarSelector.DropDownItems.Add(cleanItemToolbar);
             ToolbarSelector.DropDownItems.Add(clearItemToolbar);
             ToolbarSelector.Enabled = Enabled = true;
         }
@@ -101,6 +110,12 @@ namespace ProjectManager.Controls
             item.Tag = projectPath;
             item.Click += delegate { OnProjectSelected(projectPath); };
             return item;
+        }
+
+        private void CleanAllItems()
+        {
+            FileHelper.FilterByExisting(PluginMain.Settings.RecentProjects, true);
+            RebuildList();
         }
 
         private void ClearAllItems()

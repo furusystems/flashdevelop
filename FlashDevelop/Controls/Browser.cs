@@ -1,13 +1,13 @@
 using System;
-using System.Text;
-using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using System.ComponentModel;
-using System.Collections.Generic;
 using PluginCore.Localization;
-using PluginCore.Controls;
+using PluginCore.Helpers;
 using PluginCore;
+using Microsoft.Win32;
+using System.Reflection;
+using System.IO;
 
 namespace FlashDevelop.Controls
 {
@@ -20,6 +20,22 @@ namespace FlashDevelop.Controls
         private System.Windows.Forms.ToolStripButton refreshButton;
         private System.Windows.Forms.ToolStripSpringComboBox addressComboBox;
         private FlashDevelop.Controls.WebBrowserEx webBrowser;
+
+        static Browser()
+        {
+            try
+            {
+                // Sets a key in registry so that latest .NET browser control is used
+                String valueName = Path.GetFileName(Application.ExecutablePath);
+                String subKey = "Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION\\";
+                RegistryKey emu = Registry.CurrentUser.OpenSubKey(subKey, true);
+                {
+                    Object value = emu.GetValue(valueName);
+                    if (value == null) emu.SetValue(valueName, 0, RegistryValueKind.DWord);
+                }
+            }
+            catch { } // No errors please...
+        }
 
         public Browser()
         {
@@ -100,7 +116,7 @@ namespace FlashDevelop.Controls
             this.addressComboBox.Size = new System.Drawing.Size(450, 21);
             this.addressComboBox.Padding = new System.Windows.Forms.Padding(0, 0, 1, 0);
             this.addressComboBox.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.AddressComboBoxKeyPress);
-            this.addressComboBox.SelectedIndexChanged += new System.EventHandler(this.AddressComboBoxSelectedIndexChanged);
+            this.addressComboBox.FlatCombo.SelectedIndexChanged += new System.EventHandler(this.AddressComboBoxSelectedIndexChanged);
             // 
             // goButton
             //
@@ -158,7 +174,7 @@ namespace FlashDevelop.Controls
         /// <summary>
         /// Accessor for the addressComboBox
         /// </summary>
-        public ToolStripComboBox AddressBox
+        public ToolStripComboBoxEx AddressBox
         {
             get { return this.addressComboBox; }
         }
@@ -179,8 +195,18 @@ namespace FlashDevelop.Controls
         /// </summary>
         private void InitializeInterface()
         {
-            this.toolStrip.Renderer = new DockPanelStripRenderer(true);
             this.addressComboBox.FlatStyle = Globals.Settings.ComboBoxFlatStyle;
+            this.toolStrip.Renderer = new DockPanelStripRenderer(true, false);
+            this.toolStrip.ImageScalingSize = ScaleHelper.Scale(new Size(16, 16));
+            if (ScaleHelper.GetScale() >= 1.5)
+            {
+                ComponentResourceManager resources = new ComponentResourceManager(typeof(Browser));
+                this.goButton.Image = ((System.Drawing.Image)(resources.GetObject("goButton.Image32")));
+                this.forwardButton.Image = ((System.Drawing.Image)(resources.GetObject("forwardButton.Image32")));
+                this.refreshButton.Image = ((System.Drawing.Image)(resources.GetObject("refreshButton.Image32")));
+                this.backButton.Image = ((System.Drawing.Image)(resources.GetObject("backButton.Image32")));
+                this.Refresh();
+            }
         }
 
         /// <summary>

@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Net;
 using System.Text;
-using System.Data;
 using System.Timers;
 using System.Drawing;
 using System.Diagnostics;
@@ -11,6 +10,7 @@ using System.ComponentModel;
 using PluginCore.Localization;
 using PluginCore.Managers;
 using PluginCore.Helpers;
+using PluginCore;
 
 namespace FlashDevelop.Dialogs
 {
@@ -21,7 +21,8 @@ namespace FlashDevelop.Dialogs
         private System.Windows.Forms.Button closeButton;
         private System.Windows.Forms.Button downloadButton;
         private System.ComponentModel.BackgroundWorker worker;
-        private String URL = "http://www.flashdevelop.org/latest.txt";
+        private String URL = DistroConfig.DISTRIBUTION_VERSION;
+        private static Boolean silentCheck = false;
 
         public UpdateDialog()
         {
@@ -30,6 +31,7 @@ namespace FlashDevelop.Dialogs
             this.InitializeComponent();
             this.ApplyLocalizedTexts();
             this.InitializeUpdating();
+            ScaleHelper.AdjustForHighDPI(this);
         }
 
         #region Windows Form Designer Generated Code
@@ -177,7 +179,8 @@ namespace FlashDevelop.Dialogs
                 String version = reader.ReadLine(); // Read version
                 String download = reader.ReadLine(); // Read download
                 String product = Application.ProductName; // Internal version
-                String current = product.Substring(13, product.IndexOf(" for") - 13);
+                Int32 lenght = DistroConfig.DISTRIBUTION_NAME.Length - 1;
+                String current = product.Substring(lenght, product.IndexOfOrdinal(" for") - lenght);
                 stream.Close(); response.Close(); // Close all resources
                 e.Result = new UpdateInfo(current, version, download);
             }
@@ -199,6 +202,7 @@ namespace FlashDevelop.Dialogs
                 String info = TextHelper.GetString("Info.UpdateCheckFailed");
                 String formatted = String.Format(info, "\n\n");
                 this.infoLabel.Text = formatted;
+                if (silentCheck) this.Close();
             }
             else if (this.updateInfo.NeedsUpdate)
             {
@@ -206,21 +210,24 @@ namespace FlashDevelop.Dialogs
                 String info = TextHelper.GetString("Info.UpdateAvailable");
                 String formatted = String.Format(info, "\n\n", this.updateInfo.UserVersion, this.updateInfo.ServerVersion);
                 this.infoLabel.Text = formatted;
+                if (silentCheck) this.ShowDialog();
             }
             else if (!this.updateInfo.NeedsUpdate)
             {
                 String info = TextHelper.GetString("Info.NoUpdateAvailable");
                 this.infoLabel.Text = info;
+                if (silentCheck) this.Close();
             }
         }
 
         /// <summary>
         /// Shows the update dialog
         /// </summary>
-        public static new void Show()
+        public static void Show(Boolean silent)
         {
+            silentCheck = silent;
             UpdateDialog updateDialog = new UpdateDialog();
-            updateDialog.ShowDialog();
+            if (!silentCheck) updateDialog.ShowDialog();
         }
 
         #endregion

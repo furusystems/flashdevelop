@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 
 namespace PluginCore.Helpers
@@ -25,7 +24,7 @@ namespace PluginCore.Helpers
         public static Dictionary<string, SimpleIni> Cache = new Dictionary<string, SimpleIni>();
 
         /// <summary>
-        /// Read a simple config file and returns its variables as a collection of dictionnaries.
+        /// Read a simple config file and returns its variables as a collection of dictionaries.
         /// </summary>
         public static SimpleIni Parse(string configPath, bool cache)
         {
@@ -40,8 +39,8 @@ namespace PluginCore.Helpers
                 foreach (string rawLine in lines)
                 {
                     string line = rawLine.Trim();
-                    if (line.Length < 2 || line.StartsWith("#") || line.StartsWith(";")) continue;
-                    if (line.StartsWith("["))
+                    if (line.Length < 2 || line.StartsWith("#", StringComparison.Ordinal) || line.StartsWith(";", StringComparison.Ordinal)) continue;
+                    if (line.StartsWith("[", StringComparison.Ordinal))
                     {
                         if (currentSection != null) ini.Add(currentSection, config);
                         config = new Dictionary<string, string>();

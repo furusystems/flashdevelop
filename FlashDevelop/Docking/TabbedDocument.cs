@@ -20,34 +20,34 @@ using PluginCore;
 namespace FlashDevelop.Docking
 {
     public class TabbedDocument : DockContent, ITabbedDocument
-	{
+    {
         private Timer focusTimer;
         private Timer backupTimer;
         private String previousText;
+        private List<Int32> bookmarks;
         private ScintillaControl editor;
         private ScintillaControl editor2;
         private ScintillaControl lastEditor;
         private SplitContainer splitContainer;
         private Boolean useCustomIcon;
         private Boolean isModified;
-        private List<int> bookmarks;
         private FileInfo fileInfo;
 
         public TabbedDocument()
-		{
+        {
             this.focusTimer = new Timer();
             this.focusTimer.Interval = 100;
+            this.bookmarks = new List<Int32>();
             this.focusTimer.Tick += new EventHandler(this.OnFocusTimer);
             this.ControlAdded += new ControlEventHandler(this.DocumentControlAdded);
+            UITools.Manager.OnMarkerChanged += new UITools.LineEventHandler(this.OnMarkerChanged);
             this.DockPanel = Globals.MainForm.DockPanel;
             this.Font = Globals.Settings.DefaultFont;
             this.DockAreas = DockAreas.Document;
             this.BackColor = Color.White;
             this.useCustomIcon = false;
             this.StartBackupTiming();
-            this.bookmarks = new List<int>();
-            UITools.Manager.OnMarkerChanged += new UITools.LineEventHandler(this.OnMarkerChanged);
-		}
+        }
 
         /// <summary>
         /// Disables the automatic update of the icon
@@ -127,6 +127,23 @@ namespace FlashDevelop.Docking
         }
 
         /// <summary>
+        /// Does this document's pane have any other documents?
+        /// </summary> 
+        public Boolean IsAloneInPane
+        {
+            get
+            {
+                int count = 0;
+                foreach (ITabbedDocument document in Globals.MainForm.Documents)
+                {
+                    if (document.DockHandler.PanelPane == DockHandler.PanelPane)
+                        count++;
+                }
+                return count <= 1;
+            }
+        }
+
+        /// <summary>
         /// Current ScintillaControl of the document
         /// </summary>
         public ScintillaControl SciControl
@@ -198,7 +215,7 @@ namespace FlashDevelop.Docking
             get
             {
                 String untitledFileStart = TextHelper.GetString("Info.UntitledFileStart");
-                if (this.IsEditable) return this.FileName.StartsWith(untitledFileStart);
+                if (this.IsEditable) return this.FileName.StartsWithOrdinal(untitledFileStart);
                 else return false;
             }
         }
@@ -232,6 +249,7 @@ namespace FlashDevelop.Docking
                 this.focusTimer.Stop();
                 this.focusTimer.Start();
             }
+            ButtonManager.UpdateFlaggedButtons();
         }
         private void OnFocusTimer(Object sender, EventArgs e)
         {
@@ -243,28 +261,24 @@ namespace FlashDevelop.Docking
             }
         }
 
-        private void OnMarkerChanged(ScintillaControl sci, int line)
+        /// <summary>
+        /// 
+        /// </summary>
+        private void OnMarkerChanged(ScintillaControl sci, Int32 line)
         {
-            if (sci != editor && sci != editor2)
-                return;
-
+            if (sci != this.editor && sci != this.editor2) return;
             if (line == -1) // all markers cleared
             {
-                bookmarks.Clear();
+                this.bookmarks.Clear();
                 ButtonManager.UpdateFlaggedButtons();
                 return;
             }
-
-            bool hadBookmark = bookmarks.Contains(line);
-            bool hasBookmark = MarkerManager.HasMarker(sci, 0, line);
-
+            Boolean hadBookmark = this.bookmarks.Contains(line);
+            Boolean hasBookmark = MarkerManager.HasMarker(sci, 0, line);
             if (hadBookmark != hasBookmark) // any change?
             {
-                if (!hadBookmark && hasBookmark) //added bookmark
-                    bookmarks.Add(line);
-                else if (hadBookmark && !hasBookmark) // removed bookmark
-                    bookmarks.Remove(line);
-
+                if (!hadBookmark && hasBookmark) this.bookmarks.Add(line);
+                else if (hadBookmark && !hasBookmark) this.bookmarks.Remove(line);
                 ButtonManager.UpdateFlaggedButtons();
             }
         }
@@ -280,6 +294,7 @@ namespace FlashDevelop.Docking
             this.editor2.Dock = DockStyle.Fill;
             this.splitContainer = new SplitContainer();
             this.splitContainer.Name = "fdSplitView";
+            this.splitContainer.SplitterWidth = ScaleHelper.Scale(this.splitContainer.SplitterWidth);
             this.splitContainer.Orientation = Orientation.Horizontal;
             this.splitContainer.BackColor = SystemColors.Control;
             this.splitContainer.Panel1.Controls.Add(this.editor);
@@ -349,13 +364,20 @@ namespace FlashDevelop.Docking
             if (!Globals.MainForm.ClosingEntirely && File.Exists(this.FileName))
             {
                 FileInfo fi = new FileInfo(this.FileName);
-                if (this.fileInfo.LastWriteTime != fi.LastWriteTime)
-                {
-                    this.fileInfo = fi;
-                    return true;
-                }
+                if (this.fileInfo.LastWriteTime != fi.LastWriteTime) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Updates the file info after user dismisses the change notification
+        /// </summary>
+        public void RefreshFileInfo()
+        {
+            if (!Globals.MainForm.ClosingEntirely && File.Exists(this.FileName))
+            {
+                this.fileInfo = new FileInfo(this.FileName);
+            }
         }
 
         /// <summary>
@@ -441,12 +463,10 @@ namespace FlashDevelop.Docking
                 Encoding encoding = Encoding.GetEncoding(info.CodePage);
                 this.SciControl.IsReadOnly = false;
                 this.SciControl.Encoding = encoding;
-                this.SciControl.CodePage = ScintillaManager.SelectCodePage(info.CodePage);
                 this.SciControl.Text = info.Contents;
                 this.SciControl.IsReadOnly = FileHelper.FileIsReadOnly(this.FileName);
                 this.SciControl.SetSel(position, position);
                 this.SciControl.EmptyUndoBuffer();
-                this.SciControl.Focus();
                 this.InitBookmarks();
             }
             Globals.MainForm.OnDocumentReload(this);
@@ -497,15 +517,15 @@ namespace FlashDevelop.Docking
         }
 
         /// <summary>
-        /// Automaticly updates the document icon
+        /// Automatically updates the document icon
         /// </summary>
         private void UpdateDocumentIcon(String file)
         {
             if (this.useCustomIcon) return;
-            if (!this.IsBrowsable) this.Icon = IconExtractor.GetFileIcon(file, true);
+            if (Win32.ShouldUseWin32() && !this.IsBrowsable) this.Icon = IconExtractor.GetFileIcon(file, true);
             else
             {
-                Image image = Globals.MainForm.FindImage("480");
+                Image image = Globals.MainForm.FindImage("480", false);
                 this.Icon = ImageKonverter.ImageToIcon(image);
                 this.useCustomIcon = true;
             }
@@ -520,12 +540,16 @@ namespace FlashDevelop.Docking
             this.UpdateToolTipText();
         }
 
+        /// <summary>
+        /// Checks the bookmarks when document is active.
+        /// </summary>
         public void InitBookmarks()
         {
-            bookmarks.Clear();
-            for (int i = 0; i < editor.LineCount; i++)
-                if (MarkerManager.HasMarker(SciControl, 0, i))
-                    bookmarks.Add(i);
+            this.bookmarks.Clear();
+            for (Int32 i = 0; i < editor.LineCount; i++) 
+            {
+                if (MarkerManager.HasMarker(SciControl, 0, i)) this.bookmarks.Add(i);
+            }
         }
 
         /// <summary>
@@ -546,6 +570,16 @@ namespace FlashDevelop.Docking
             this.UpdateDocumentIcon(this.FileName);
         }
 
+        /// <summary>
+        /// Close the document and update buttons
+        /// </summary>
+        public new void Close()
+        {
+            base.Close();
+            ButtonManager.UpdateFlaggedButtons();
+        }
+
     }
-	
+
 }
+

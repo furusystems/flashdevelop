@@ -1,8 +1,7 @@
 using System;
-using System.Text;
 using System.Collections.Generic;
-using PluginCore;
 using System.IO;
+using PluginCore;
 
 namespace ProjectManager.Projects.Haxe
 {
@@ -107,7 +106,7 @@ namespace ProjectManager.Projects.Haxe
             }
         }
 
-        // process HaXe-specific stuff
+        // process Haxe-specific stuff
         protected override void ProcessNode(string name)
         {
             switch (name)

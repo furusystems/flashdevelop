@@ -1,9 +1,7 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using PluginCore;
-using Win32;
 
 namespace System.Windows.Forms
 {
@@ -55,14 +53,14 @@ namespace System.Windows.Forms
 
         new public void BeginUpdate()
         {
-            NativeMethods.SendMessage(Handle, NativeMethods.WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+            Win32.SendMessage(Handle, Win32.WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
             base.BeginUpdate();
         }
 
         new public void EndUpdate()
         {
             base.EndUpdate();
-            NativeMethods.SendMessage(Handle, NativeMethods.WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
+            Win32.SendMessage(Handle, Win32.WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
         }
 
         #region Expanded State Saving
@@ -151,12 +149,12 @@ namespace System.Windows.Forms
                 topNode.EnsureVisible();
 
             // manually scroll all the way to the left
-            Scrolling.scrollToLeft(this);
+            if (Win32.ShouldUseWin32()) Win32.ScrollToLeft(this);
         }
 
         public TreeNode FindClosestPath(string path)
         {
-            if (path == null || path.Length < 1) return null;
+            if (string.IsNullOrEmpty(path)) return null;
             Queue queue = new Queue(path.Split('\\'));
             return FindClosestPath(base.Nodes,queue);
         }
@@ -178,35 +176,8 @@ namespace System.Windows.Forms
             return null;
         }
 
-        /*private void HScroll(System.IntPtr direction)
-        {
-            //Set  direction to 0 to scroll left 1 char
-            //Set  direction to 1 to scroll right 1 char
-            //Set  direction to 2 to scroll 1 page left
-            //Set  direction to 3 to scroll 1 page right
-            System.Windows.Forms.Message hScrollMessage = new Message();
-
-            hScrollMessage.HWnd   = Handle;
-            hScrollMessage.Msg    = 0x0114;  // // #define WM_HSCROLL 0x0114
-            hScrollMessage.WParam = direction;
-            this.DefWndProc( ref hScrollMessage );
-        }*/
-
         #endregion
 
-        protected static class NativeMethods
-        {
-            public const int WM_SETREDRAW = 0xB;
-            public const int WM_PRINTCLIENT = 0x0318;
-            public const int PRF_CLIENT = 0x00000004;
-
-            private const int TV_FIRST = 0x1100;
-            public const int TVM_SETEXTENDEDSTYLE = TV_FIRST + 44;
-            public const int TVS_EX_DOUBLEBUFFER = 0x0004;
-
-            [DllImport("user32.dll")]
-            public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-
-        }
     }
+
 }

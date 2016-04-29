@@ -1,24 +1,21 @@
 using System;
-using System.IO;
-using System.Text;
 using System.Drawing;
+using System.IO;
 using System.Reflection;
-using System.Collections;
+using System.Text;
 using System.Windows.Forms;
-using WeifenLuo.WinFormsUI;
-using WeifenLuo.WinFormsUI.Docking;
+using PluginCore;
+using PluginCore.Helpers;
 using PluginCore.Localization;
 using PluginCore.Managers;
-using PluginCore.Helpers;
 using PluginCore.Controls;
-using PluginCore;
 
 namespace LayoutManager
 {
-	public class PluginUI : DockPanelControl
+    public class PluginUI : DockPanelControl
     {
         private ToolStrip toolStrip;
-        private ListView layoutsListView;
+        private ListViewEx layoutsListView;
         private ListViewItem infoListViewItem;
         private ToolStripMenuItem menuLoadButton;
         private ToolStripMenuItem menuSaveButton;
@@ -30,27 +27,29 @@ namespace LayoutManager
         private ToolStripButton saveStripButton;
         private ToolStripButton loadStripButton;
         private PluginMain pluginMain;
-        private ImageList imageList;
+        private ImageListManager imageList;
         
-		public PluginUI(PluginMain pluginMain)
-		{
-			this.pluginMain = pluginMain;
+        public PluginUI(PluginMain pluginMain)
+        {
+            this.AutoKeyHandling = true;
+            this.pluginMain = pluginMain;
             this.InitializeComponent();
             this.InitializeContextMenu();
             this.InitializeGraphics();
             this.InitializeTexts();
-		}
-		
-		#region Windows Forms Designer Generated Code
+            ScrollBarEx.Attach(layoutsListView);
+        }
+        
+        #region Windows Forms Designer Generated Code
 
-		/// <summary>
-		/// This method is required for Windows Forms designer support.
-		/// Do not change the method contents inside the source code editor. The Forms designer might
-		/// not be able to load this method if it was changed manually.
-		/// </summary>
-		private void InitializeComponent() 
+        /// <summary>
+        /// This method is required for Windows Forms designer support.
+        /// Do not change the method contents inside the source code editor. The Forms designer might
+        /// not be able to load this method if it was changed manually.
+        /// </summary>
+        private void InitializeComponent() 
         {
-            this.layoutsListView = new System.Windows.Forms.ListView();
+            this.layoutsListView = new System.Windows.Forms.ListViewEx();
             this.toolStrip = new PluginCore.Controls.ToolStripEx();
             this.loadStripButton = new System.Windows.Forms.ToolStripButton();
             this.deleteStripButton = new System.Windows.Forms.ToolStripButton();
@@ -148,9 +147,9 @@ namespace LayoutManager
             this.ResumeLayout(false);
             this.PerformLayout();
 
-		}
+        }
 
-		#endregion
+        #endregion
 
         #region Methods And Event Handlers
 
@@ -159,27 +158,27 @@ namespace LayoutManager
         /// </summary>
         private void InitializeGraphics()
         {
-            this.imageList = new ImageList();
-            this.imageList.ImageSize = PluginCore.Helpers.ScaleHelper.Scale(new Size(16, 16));
+            this.imageList = new ImageListManager();
+            this.imageList.ImageSize = ScaleHelper.Scale(new Size(16, 16));
             this.imageList.ColorDepth = ColorDepth.Depth32Bit;
             this.imageList.TransparentColor = Color.Transparent;
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("48"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("229"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("42|24|3|2"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("153"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("168"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("54"));
+            this.imageList.Initialize(ImageList_Populate);
             this.layoutsListView.SmallImageList = this.imageList;
-            this.layoutsListView.SmallImageList.ImageSize = ScaleHelper.Scale(new Size(16, 16));
-            this.deleteStripButton.Image = this.imageList.Images[3];
-            this.saveStripButton.Image = this.imageList.Images[4];
-            this.loadStripButton.Image = this.imageList.Images[2];
-            this.settingStripButton.Image = this.imageList.Images[5];
-            this.menuSettingButton.Image = this.imageList.Images[5];
-            this.menuDeleteButton.Image = this.imageList.Images[3];
-            this.menuSaveButton.Image = this.imageList.Images[4];
-            this.menuLoadButton.Image = this.imageList.Images[2];
+            this.menuLoadButton.Image = PluginBase.MainForm.FindImage("42|24|3|2");
+            this.loadStripButton.Image = PluginBase.MainForm.FindImage("42|24|3|2");
+            this.menuDeleteButton.Image = PluginBase.MainForm.FindImage("153");
+            this.deleteStripButton.Image = PluginBase.MainForm.FindImage("153");
+            this.menuSaveButton.Image = PluginBase.MainForm.FindImage("168");
+            this.saveStripButton.Image = PluginBase.MainForm.FindImage("168");
+            this.menuSettingButton.Image = PluginBase.MainForm.FindImage("54");
+            this.settingStripButton.Image = PluginBase.MainForm.FindImage("54");
             this.toolStrip.ImageScalingSize = ScaleHelper.Scale(new Size(16, 16));
+        }
+
+        private void ImageList_Populate(object sender, EventArgs e)
+        {
+            this.imageList.Images.Add(PluginBase.MainForm.FindImageAndSetAdjust("48"));
+            this.imageList.Images.Add(PluginBase.MainForm.FindImageAndSetAdjust("229"));
         }
 
         /// <summary>
@@ -205,10 +204,10 @@ namespace LayoutManager
         /// </summary>
         private void InitializeTexts()
         {
-            this.loadStripButton.ToolTipText = TextHelper.GetString("Label.LoadLayout").Replace("&", "");
-            this.deleteStripButton.ToolTipText = TextHelper.GetString("Label.DeleteLayout").Replace("&", "");
-            this.settingStripButton.ToolTipText = TextHelper.GetString("Label.ShowSettings").Replace("&", "");
-            this.saveStripButton.ToolTipText = TextHelper.GetString("Label.SaveCurrent").Replace("&", "");
+            this.loadStripButton.ToolTipText = TextHelper.GetStringWithoutMnemonics("Label.LoadLayout");
+            this.deleteStripButton.ToolTipText = TextHelper.GetStringWithoutMnemonics("Label.DeleteLayout");
+            this.settingStripButton.ToolTipText = TextHelper.GetStringWithoutMnemonics("Label.ShowSettings");
+            this.saveStripButton.ToolTipText = TextHelper.GetStringWithoutMnemonics("Label.SaveCurrent");
         }
 
         /// <summary>

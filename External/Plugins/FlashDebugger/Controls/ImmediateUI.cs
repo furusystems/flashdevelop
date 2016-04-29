@@ -7,6 +7,8 @@ using System.Text;
 using System.Windows.Forms;
 using flash.tools.debugger;
 using flash.tools.debugger.expression;
+using PluginCore;
+using PluginCore.Controls;
 
 namespace FlashDebugger.Controls
 {
@@ -17,9 +19,11 @@ namespace FlashDebugger.Controls
 
         public ImmediateUI()
         {
+            this.AutoKeyHandling = true;
             this.InitializeComponent();
             this.contextMenuStrip.Renderer = new DockPanelStripRenderer(false);
             this.history = new List<string>();
+            ScrollBarEx.Attach(textBox);
         }
 
         private void textBox_KeyDown(object sender, KeyEventArgs e)
@@ -30,16 +34,24 @@ namespace FlashDebugger.Controls
                 this.historyPos--;
                 this.textBox.Select(this.textBox.Text.Length, 0);
                 this.textBox.Text = this.textBox.Text.Substring(0, this.textBox.GetFirstCharIndexOfCurrentLine()) + this.history[this.historyPos];
-                this.textBox.Select(this.textBox.Text.Length, 0);
-                this.textBox.ScrollToCaret();
+                try
+                {
+                    this.textBox.Select(this.textBox.TextLength, 0);
+                    this.textBox.ScrollToCaret();
+                }
+                catch { /* WineMod: not supported */ }
             }
             if (e.KeyCode == Keys.Down && this.historyPos + 1 < this.history.Count)
             {
                 this.historyPos++;
                 this.textBox.Select(this.textBox.Text.Length, 0);
                 this.textBox.Text = this.textBox.Text.Substring(0, this.textBox.GetFirstCharIndexOfCurrentLine()) + this.history[this.historyPos];
-                this.textBox.Select(this.textBox.Text.Length, 0);
-                this.textBox.ScrollToCaret();
+                try
+                {
+                    this.textBox.Select(this.textBox.TextLength, 0);
+                    this.textBox.ScrollToCaret();
+                }
+                catch { /* WineMod: not supported */ }
             }
             if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) e.SuppressKeyPress = true;
             if (e.KeyCode == Keys.Enter)
@@ -56,48 +68,66 @@ namespace FlashDebugger.Controls
                 //}
                 string line = "";
                 if (curLine<this.textBox.Lines.Length) line = this.textBox.Lines[curLine];
-                if (this.textBox.Lines.Length > 0 && !this.textBox.Lines[this.textBox.Lines.Length - 1].Trim().Equals("")) this.textBox.Text += "\r\n";
+                if (this.textBox.Lines.Length > 0 && !this.textBox.Lines[this.textBox.Lines.Length - 1].Trim().Equals("")) this.textBox.AppendText(Environment.NewLine);
                 try
                 {
                     this.history.Add(line);
                     this.historyPos = this.history.Count;
                     if (line == "swfs")
                     {
-                        this.textBox.Text += processSwfs();
+                        this.textBox.AppendText(processSwfs());
                     }
-                    else if (line.StartsWith("p "))
+                    else if (line.StartsWithOrdinal("p "))
                     {
-                        this.textBox.Text += processExpr(line.Substring(2));
+                        this.textBox.AppendText(processExpr(line.Substring(2)));
                     }
-                    else if (line.StartsWith("g "))
+                    else if (line.StartsWithOrdinal("g "))
                     {
-                        this.textBox.Text += processGlobal(line.Substring(2));
+                        this.textBox.AppendText(processGlobal(line.Substring(2)));
                     }
                     else
                     {
-                        this.textBox.Text += "Commands: swfs, p <exptr>, g <value id>";
+                        this.textBox.AppendText("Commands: swfs, p <exptr>, g <value id>");
                     }
+                }
+                catch (NoSuchVariableException ex)
+                {
+                    this.textBox.AppendText(ex.ToString());
+                }
+                catch (PlayerDebugException ex)
+                {
+                    this.textBox.AppendText(ex.ToString());
+                }
+                catch (PlayerFaultException ex)
+                {
+                    this.textBox.AppendText(ex.ToString());
                 }
                 catch (Exception ex)
                 {
-                    this.textBox.Text += ex.ToString();
+                    this.textBox.AppendText(!string.IsNullOrEmpty(ex.Message) ? ex.GetType().FullName + ": " + ex.Message : ex.ToString());
                 }
-                if (this.textBox.Lines.Length > 0 && !this.textBox.Lines[this.textBox.Lines.Length - 1].Trim().Equals("")) this.textBox.Text += "\r\n";
-                this.textBox.Select(this.textBox.Text.Length, 0);
-                this.textBox.ScrollToCaret();
+                if (this.textBox.Lines.Length > 0 && !this.textBox.Lines[this.textBox.Lines.Length - 1].Trim().Equals("")) this.textBox.AppendText(Environment.NewLine);
+                try
+                {
+                    this.textBox.Select(this.textBox.TextLength, 0);
+                    this.textBox.ScrollToCaret();
+                }
+                catch { /* WineMod: not supported */ }
             }
         }
 
         private string processSwfs()
         {
-                string ret = "";
+                StringBuilder ret = new StringBuilder();
 
                 foreach (SwfInfo info in PluginMain.debugManager.FlashInterface.Session.getSwfs())
                 {
-					if (info == null) continue;
-                    ret += info.getPath() + "\tswfsize " + info.getSwfSize() + "\tprocesscomplete " + info.isProcessingComplete() + "\tunloaded " + info.isUnloaded() + "\turl " + info.getUrl() + "\tsourcecount "+info.getSourceCount(PluginMain.debugManager.FlashInterface.Session) + "\r\n";
+                    if (info == null) continue;
+                    ret.Append(info.getPath()).Append("\tswfsize ").Append(info.getSwfSize()).Append("\tprocesscomplete ").Append(info.isProcessingComplete())
+                        .Append("\tunloaded ").Append(info.isUnloaded()).Append("\turl ").Append(info.getUrl()).Append("\tsourcecount ")
+                        .Append(info.getSourceCount(PluginMain.debugManager.FlashInterface.Session)).AppendLine();
                 }
-                return ret;
+                return ret.ToString();
         }
 
         private string processExpr(string expr)

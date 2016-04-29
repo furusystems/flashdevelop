@@ -5,35 +5,35 @@ using ProjectManager.Projects;
 
 namespace ProjectManager.Building
 {
-	/// <summary>
-	/// Processed pre and post-build steps, filling in project variables
-	/// </summary>
-	public class BuildEventRunner
-	{
-		Project project;
-		BuildEventVars vars;
+    /// <summary>
+    /// Processed pre and post-build steps, filling in project variables
+    /// </summary>
+    public class BuildEventRunner
+    {
+        Project project;
+        BuildEventVars vars;
 
-		public BuildEventRunner(Project project, string compilerPath)
-		{
-			this.project = project;
+        public BuildEventRunner(Project project, string compilerPath)
+        {
+            this.project = project;
             project.CurrentSDK = compilerPath;
-			this.vars = new BuildEventVars(project);
-		}
+            this.vars = new BuildEventVars(project);
+        }
 
         //parse line into command/argument pair
         private string[] tokenize(string line)
         {
             string[] result = new String[2];
 
-            if (line.StartsWith("\""))
+            if (line.StartsWith("\"", StringComparison.Ordinal))
             {
-                int endQuote = line.IndexOf("\"", 1);
+                int endQuote = line.IndexOf('\"', 1);
                 result[0] = (endQuote > -1) ? line.Substring(1, endQuote - 1) : line;
                 result[1] = (endQuote > -1) ? line.Substring(endQuote + 1).TrimStart() : "";
             }
             else
             {
-                int space = line.IndexOf(" ");
+                int space = line.IndexOf(' ');
                 result[0] = (space > -1) ? line.Substring(0, space) : line;
                 result[1] = (space > -1) ? line.Substring(space + 1) : "";
             }
@@ -58,12 +58,12 @@ namespace ProjectManager.Building
                     continue; // nothing to do
 
                 // conditional execution
-                if (line.StartsWith("DEBUG:"))
+                if (line.StartsWith("DEBUG:", StringComparison.Ordinal))
                 {
                     if (noTrace) continue;
                     else line = line.Substring("DEBUG:".Length).Trim();
                 }
-                if (line.StartsWith("RELEASE:"))
+                if (line.StartsWith("RELEASE:", StringComparison.Ordinal))
                 {
                     if (!noTrace) continue;
                     else line = line.Substring("RELEASE:".Length).Trim();
@@ -103,5 +103,5 @@ namespace ProjectManager.Building
                 }
             }
         }
-	}
+    }
 }

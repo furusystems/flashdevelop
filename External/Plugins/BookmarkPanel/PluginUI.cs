@@ -18,9 +18,9 @@ using PluginCore.Helpers;
 
 namespace BookmarkPanel
 {
-	public class PluginUI : DockPanelControl
+    public class PluginUI : DockPanelControl
     {
-        private System.Windows.Forms.ListView listView;
+        private System.Windows.Forms.ListViewEx listView;
         private System.Windows.Forms.ToolStrip toolStrip;
         private System.Windows.Forms.ColumnHeader columnLine;
         private System.Windows.Forms.ColumnHeader columnText;
@@ -30,13 +30,14 @@ namespace BookmarkPanel
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.ToolStripMenuItem removeBookmarksItem;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip;
-        private System.Windows.Forms.ImageList imageList;
+        private ImageListManager imageList;
         private System.Windows.Forms.Timer updateTimer;
         private TimeoutManager timeoutManager;
         private PluginMain pluginMain;
         
-		public PluginUI(PluginMain pluginMain)
-		{
+        public PluginUI(PluginMain pluginMain)
+        {
+            this.AutoKeyHandling = true;
             this.InitializeComponent();
             this.pluginMain = pluginMain;
             this.InitializeTimers();
@@ -44,18 +45,19 @@ namespace BookmarkPanel
             this.InitializeLayout();
             this.InitializeTexts();
             this.UpdateSettings();
-		}
+            ScrollBarEx.Attach(listView);
+        }
 
         #region Windows Forms Designer Generated Code
 
         /// <summary>
-		/// This method is required for Windows Forms designer support.
-		/// Do not change the method contents inside the source code editor. The Forms designer might
-		/// not be able to load this method if it was changed manually.
-		/// </summary>
-		private void InitializeComponent() 
+        /// This method is required for Windows Forms designer support.
+        /// Do not change the method contents inside the source code editor. The Forms designer might
+        /// not be able to load this method if it was changed manually.
+        /// </summary>
+        private void InitializeComponent() 
         {
-            this.listView = new System.Windows.Forms.ListView();
+            this.listView = new System.Windows.Forms.ListViewEx();
             this.columnLine = new System.Windows.Forms.ColumnHeader();
             this.columnText = new System.Windows.Forms.ColumnHeader();
             this.contextMenuStrip = new System.Windows.Forms.ContextMenuStrip();
@@ -143,7 +145,7 @@ namespace BookmarkPanel
             // 
             // searchBox
             //
-            this.searchBox.MaxLength = 200;
+            this.searchBox.FlatCombo.MaxLength = 200;
             this.searchBox.Name = "searchBox";
             this.searchBox.Size = new System.Drawing.Size(200, 22);
             this.searchBox.Padding = new System.Windows.Forms.Padding(0, 0, 1, 0);
@@ -183,9 +185,9 @@ namespace BookmarkPanel
             this.ResumeLayout(false);
             this.PerformLayout();
 
-		}
+        }
 
-		#endregion
+        #endregion
 
         #region Methods And Event Handlers
         
@@ -220,7 +222,6 @@ namespace BookmarkPanel
             this.searchButton.ToolTipText = TextHelper.GetString("ToolTip.SearchBookmarks");
             this.contextMenuStrip.Font = PluginBase.Settings.DefaultFont;
             this.statusLabel.Font = PluginBase.Settings.DefaultFont;
-            this.columnText.Width = -2; // Extend last column
         }
 
         /// <summary>
@@ -228,18 +229,20 @@ namespace BookmarkPanel
         /// </summary>
         private void InitializeGraphics()
         {
-            this.imageList = new ImageList();
+            this.imageList = new ImageListManager();
             this.imageList.ImageSize = ScaleHelper.Scale(new Size(16, 16));
             this.imageList.ColorDepth = ColorDepth.Depth32Bit;
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("559|26|0|1"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("229"));
-            this.imageList.Images.Add(PluginBase.MainForm.FindImage("197"));
-            this.imageList.Images.SetKeyName(0, "Bookmark");
-            this.imageList.Images.SetKeyName(1, "Info");
-            this.imageList.Images.SetKeyName(2, "Error");
+            this.imageList.Initialize(ImageList_Populate);
             this.listView.SmallImageList = this.imageList;
             this.removeBookmarksItem.Image = PluginBase.MainForm.FindImage("402|4|4|4");
             this.searchButton.Image = PluginBase.MainForm.FindImage("484|26|-4|4");
+        }
+
+        private void ImageList_Populate(object sender, EventArgs e)
+        {
+            this.imageList.Images.Add("Bookmark", PluginBase.MainForm.FindImageAndSetAdjust("559|26|0|1"));
+            this.imageList.Images.Add("Info", PluginBase.MainForm.FindImageAndSetAdjust("229"));
+            this.imageList.Images.Add("Error", PluginBase.MainForm.FindImageAndSetAdjust("197"));
         }
 
         /// <summary>
@@ -257,6 +260,7 @@ namespace BookmarkPanel
         /// </summary>
         private void InitializeLayout()
         {
+            this.searchBox.FlatStyle = PluginBase.Settings.ComboBoxFlatStyle;
             this.toolStrip.Font = PluginBase.Settings.DefaultFont;
             this.toolStrip.Renderer = new DockPanelStripRenderer();
             this.toolStrip.ImageScalingSize = ScaleHelper.Scale(new Size(16, 16));
@@ -266,10 +270,10 @@ namespace BookmarkPanel
             this.contextMenuStrip.Font = PluginBase.Settings.DefaultFont;
             this.contextMenuStrip.Renderer = new DockPanelStripRenderer(false);
             this.contextMenuStrip.ImageScalingSize = ScaleHelper.Scale(new Size(16, 16));
-            this.searchBox.FlatStyle = PluginBase.Settings.ComboBoxFlatStyle;
-
             foreach (ColumnHeader column in listView.Columns)
+            {
                 column.Width = ScaleHelper.Scale(column.Width);
+            }
         }
 
         /// <summary>
@@ -324,7 +328,7 @@ namespace BookmarkPanel
                 if (document != null && document.IsEditable)
                 {
                     document.Activate();
-                    document.SciControl.GotoLine(line);
+                    document.SciControl.GotoLineIndent(line);
                 }
             }
         }
@@ -405,6 +409,7 @@ namespace BookmarkPanel
                 search.NoCase = true;
                 search.IsRegex = true;
                 search.Filter = SearchFilter.None;
+                search.SourceFile = sci.FileName;
                 return search.Matches(sci.Text);
             }
             return null;
@@ -479,7 +484,7 @@ namespace BookmarkPanel
             ListViewGroup group = this.FindGroup(document.FileName);
             if (group == null) return;
             List<Int32> markers = this.GetMarkers(document.SciControl);
-            if (group != null && this.NeedRefresh(document.SciControl, markers, group.Items))
+            if (this.NeedRefresh(document.SciControl, markers, group.Items))
             {
                 Int32 index = 0;
                 ListViewItem item;
@@ -634,22 +639,22 @@ namespace BookmarkPanel
 
     public class TimeoutManager
     {
-		/// <summary>
-		/// Method to call on timeout
-		/// </summary>
-		public delegate void TimeoutDelegate(String tag);
+        /// <summary>
+        /// Method to call on timeout
+        /// </summary>
+        public delegate void TimeoutDelegate(String tag);
 
         /// <summary>
         /// Sets the specified timeout
         /// </summary>
         public void SetTimeout(TimeoutDelegate timeoutHandler, String tag)
-		{
-			this.SetTimeout(timeoutHandler, tag, 200);
-		}
+        {
+            this.SetTimeout(timeoutHandler, tag, 200);
+        }
 
-		/// <summary>
-		/// Waits for timeout and calls method
-		/// </summary>
+        /// <summary>
+        /// Waits for timeout and calls method
+        /// </summary>
         public void SetTimeout(TimeoutDelegate timeoutHandler, String tag, Int32 timeout)
         {
             TagTimer timer = new TagTimer();
@@ -671,10 +676,10 @@ namespace BookmarkPanel
             timer.TimeoutHandler(timer.Tag as String);
         }
 
-	    private class TagTimer : System.Windows.Forms.Timer
-	    {
+        private class TagTimer : System.Windows.Forms.Timer
+        {
             public TimeoutDelegate TimeoutHandler;
-	    }
+        }
 
     }
 

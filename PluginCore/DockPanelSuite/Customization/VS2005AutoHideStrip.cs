@@ -7,8 +7,8 @@ using PluginCore.Helpers;
 
 namespace WeifenLuo.WinFormsUI.Docking
 {
-	internal class VS2005AutoHideStrip : AutoHideStripBase
-	{
+    internal class VS2005AutoHideStrip : AutoHideStripBase
+    {
         private class TabVS2005 : Tab
         {
             internal TabVS2005(IDockContent content)
@@ -45,146 +45,146 @@ namespace WeifenLuo.WinFormsUI.Docking
         private const int _TabGapLeft = 3;
         private const int _TabGapBetween = 4;
 
-		#region Customizable Properties
-		private static StringFormat _stringFormatTabHorizontal;
-		private StringFormat StringFormatTabHorizontal
-		{
-			get
-			{
-				if (_stringFormatTabHorizontal == null)
-				{
-					_stringFormatTabHorizontal = new StringFormat();
-					_stringFormatTabHorizontal.Alignment = StringAlignment.Near;
-					_stringFormatTabHorizontal.LineAlignment = StringAlignment.Center;
-					_stringFormatTabHorizontal.FormatFlags = StringFormatFlags.NoWrap;
-				}
+        #region Customizable Properties
+        private static StringFormat _stringFormatTabHorizontal;
+        private StringFormat StringFormatTabHorizontal
+        {
+            get
+            {
+                if (_stringFormatTabHorizontal == null)
+                {
+                    _stringFormatTabHorizontal = new StringFormat();
+                    _stringFormatTabHorizontal.Alignment = StringAlignment.Near;
+                    _stringFormatTabHorizontal.LineAlignment = StringAlignment.Center;
+                    _stringFormatTabHorizontal.FormatFlags = StringFormatFlags.NoWrap;
+                }
 
                 if (RightToLeft == RightToLeft.Yes)
                     _stringFormatTabHorizontal.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
                 else
                     _stringFormatTabHorizontal.FormatFlags &= ~StringFormatFlags.DirectionRightToLeft;
 
-				return _stringFormatTabHorizontal;
-			}
-		}
+                return _stringFormatTabHorizontal;
+            }
+        }
 
-		private static StringFormat _stringFormatTabVertical;
-		private StringFormat StringFormatTabVertical
-		{
-			get
-			{	
-				if (_stringFormatTabVertical == null)
-				{
-					_stringFormatTabVertical = new StringFormat();
-					_stringFormatTabVertical.Alignment = StringAlignment.Near;
-					_stringFormatTabVertical.LineAlignment = StringAlignment.Center;
-					_stringFormatTabVertical.FormatFlags = StringFormatFlags.NoWrap | StringFormatFlags.DirectionVertical;
-				}
+        private static StringFormat _stringFormatTabVertical;
+        private StringFormat StringFormatTabVertical
+        {
+            get
+            {   
+                if (_stringFormatTabVertical == null)
+                {
+                    _stringFormatTabVertical = new StringFormat();
+                    _stringFormatTabVertical.Alignment = StringAlignment.Near;
+                    _stringFormatTabVertical.LineAlignment = StringAlignment.Center;
+                    _stringFormatTabVertical.FormatFlags = StringFormatFlags.NoWrap | StringFormatFlags.DirectionVertical;
+                }
                 if (RightToLeft == RightToLeft.Yes)
                     _stringFormatTabVertical.FormatFlags |= StringFormatFlags.DirectionRightToLeft;
                 else
                     _stringFormatTabVertical.FormatFlags &= ~StringFormatFlags.DirectionRightToLeft;
 
                 return _stringFormatTabVertical;
-			}
-		}
+            }
+        }
 
-		private static int ImageHeight
-		{
-			get	{	return ScaleHelper.Scale(_ImageHeight);	}
-		}
+        private static int ImageHeight
+        {
+            get {   return ScaleHelper.Scale(_ImageHeight); }
+        }
 
-		private static int ImageWidth
-		{
+        private static int ImageWidth
+        {
             get { return ScaleHelper.Scale(_ImageWidth); }
-		}
+        }
 
-		private static int ImageGapTop
-		{
-			get	{	return ScaleHelper.Scale(_ImageGapTop);	}
-		}
+        private static int ImageGapTop
+        {
+            get {   return ScaleHelper.Scale(_ImageGapTop); }
+        }
 
-		private static int ImageGapLeft
-		{
-			get	{	return ScaleHelper.Scale(_ImageGapLeft);	}
-		}
+        private static int ImageGapLeft
+        {
+            get {   return ScaleHelper.Scale(_ImageGapLeft);    }
+        }
 
-		private static int ImageGapRight
-		{
-			get	{	return ScaleHelper.Scale(_ImageGapRight);	}
-		}
+        private static int ImageGapRight
+        {
+            get {   return ScaleHelper.Scale(_ImageGapRight);   }
+        }
 
-		private static int ImageGapBottom
-		{
-			get	{	return ScaleHelper.Scale(_ImageGapBottom);	}
-		}
+        private static int ImageGapBottom
+        {
+            get {   return ScaleHelper.Scale(_ImageGapBottom);  }
+        }
 
-		private static int TextGapLeft
-		{
-			get	{	return ScaleHelper.Scale(_TextGapLeft);	}
-		}
+        private static int TextGapLeft
+        {
+            get {   return ScaleHelper.Scale(_TextGapLeft); }
+        }
 
-		private static int TextGapRight
-		{
-			get	{	return ScaleHelper.Scale(_TextGapRight);	}
-		}
+        private static int TextGapRight
+        {
+            get {   return ScaleHelper.Scale(_TextGapRight);    }
+        }
 
-		private static int TabGapTop
-		{
-			get	{	return ScaleHelper.Scale(_TabGapTop);	}
-		}
+        private static int TabGapTop
+        {
+            get {   return ScaleHelper.Scale(_TabGapTop);   }
+        }
 
-		private static int TabGapLeft
-		{
-			get	{	return ScaleHelper.Scale(_TabGapLeft);	}
-		}
+        private static int TabGapLeft
+        {
+            get {   return ScaleHelper.Scale(_TabGapLeft);  }
+        }
 
-		private static int TabGapBetween
-		{
-			get	{	return ScaleHelper.Scale(_TabGapBetween);	}
-		}
+        private static int TabGapBetween
+        {
+            get {   return ScaleHelper.Scale(_TabGapBetween);   }
+        }
 
-		private static Brush BrushTabBackground
-		{
-			get	
+        private static Brush BrushTabBackground
+        {
+            get 
             {
                 Color color = PluginCore.PluginBase.MainForm.GetThemeColor("VS2005AutoHideStrip.BackColor");
                 if (color != Color.Empty) return new SolidBrush(color);
-                return SystemBrushes.Control;	
+                return SystemBrushes.Control;   
             }
-		}
+        }
 
-		private static Pen PenTabBorder
-		{
+        private static Pen PenTabBorder
+        {
             get 
             {
                 Color color = PluginCore.PluginBase.MainForm.GetThemeColor("VS2005AutoHideStrip.BorderColor");
                 if (color != Color.Empty) return new Pen(color);
                 else return SystemPens.ControlDark; 
             }
-		}
+        }
 
-		private static Brush BrushTabText
-		{
-			get	
+        private static Brush BrushTabText
+        {
+            get 
             {
                 Color color = PluginCore.PluginBase.MainForm.GetThemeColor("VS2005AutoHideStrip.ForeColor");
                 if (color != Color.Empty) return new SolidBrush(color);
-                else return SystemBrushes.FromSystemColor(SystemColors.ControlDarkDark);	
+                else return SystemBrushes.FromSystemColor(SystemColors.ControlDarkDark);    
             }
-		}
-		#endregion
+        }
+        #endregion
 
         private static Matrix _matrixIdentity = new Matrix();
         private static Matrix MatrixIdentity
-		{
+        {
             get { return _matrixIdentity; }
-		}
+        }
 
         private static DockState[] _dockStates;
         private static DockState[] DockStates
-		{
-			get
+        {
+            get
             {
                 if (_dockStates == null)
                 {
@@ -196,7 +196,7 @@ namespace WeifenLuo.WinFormsUI.Docking
                 }
                 return _dockStates;
             }
-		}
+        }
 
         private static GraphicsPath _graphicsPath;
         internal static GraphicsPath GraphicsPath
@@ -210,65 +210,65 @@ namespace WeifenLuo.WinFormsUI.Docking
             }
         }
 
-		public VS2005AutoHideStrip(DockPanel panel) : base(panel)
-		{
-			SetStyle(ControlStyles.ResizeRedraw, true);
-			SetStyle(ControlStyles.UserPaint, true);
-			SetStyle(ControlStyles.AllPaintingInWmPaint, true);
+        public VS2005AutoHideStrip(DockPanel panel) : base(panel)
+        {
+            SetStyle(ControlStyles.ResizeRedraw, true);
+            SetStyle(ControlStyles.UserPaint, true);
+            SetStyle(ControlStyles.AllPaintingInWmPaint, true);
             BackColor = SystemColors.Control;
-		}
+        }
 
-		protected override void OnPaint(PaintEventArgs e)
-		{
-			Graphics g = e.Graphics;
-			DrawTabStrip(g);
-		}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            DrawTabStrip(g);
+        }
 
-		protected override void OnLayout(LayoutEventArgs levent)
-		{
-			CalculateTabs();
-			base.OnLayout (levent);
-		}
+        protected override void OnLayout(LayoutEventArgs levent)
+        {
+            CalculateTabs();
+            base.OnLayout (levent);
+        }
 
-		private void DrawTabStrip(Graphics g)
-		{
-			DrawTabStrip(g, DockState.DockTopAutoHide);
-			DrawTabStrip(g, DockState.DockBottomAutoHide);
-			DrawTabStrip(g, DockState.DockLeftAutoHide);
-			DrawTabStrip(g, DockState.DockRightAutoHide);
-		}
+        private void DrawTabStrip(Graphics g)
+        {
+            DrawTabStrip(g, DockState.DockTopAutoHide);
+            DrawTabStrip(g, DockState.DockBottomAutoHide);
+            DrawTabStrip(g, DockState.DockLeftAutoHide);
+            DrawTabStrip(g, DockState.DockRightAutoHide);
+        }
 
-		private void DrawTabStrip(Graphics g, DockState dockState)
-		{
-			Rectangle rectTabStrip = GetLogicalTabStripRectangle(dockState);
+        private void DrawTabStrip(Graphics g, DockState dockState)
+        {
+            Rectangle rectTabStrip = GetLogicalTabStripRectangle(dockState);
 
-			if (rectTabStrip.IsEmpty)
-				return;
+            if (rectTabStrip.IsEmpty)
+                return;
 
-			Matrix matrixIdentity = g.Transform;
-			if (dockState == DockState.DockLeftAutoHide || dockState == DockState.DockRightAutoHide)
-			{
-				Matrix matrixRotated = new Matrix();
-				matrixRotated.RotateAt(90, new PointF((float)rectTabStrip.X + (float)rectTabStrip.Height / 2,
-					(float)rectTabStrip.Y + (float)rectTabStrip.Height / 2));
-				g.Transform = matrixRotated;
-			}
+            Matrix matrixIdentity = g.Transform;
+            if (dockState == DockState.DockLeftAutoHide || dockState == DockState.DockRightAutoHide)
+            {
+                Matrix matrixRotated = new Matrix();
+                matrixRotated.RotateAt(90, new PointF((float)rectTabStrip.X + (float)rectTabStrip.Height / 2,
+                    (float)rectTabStrip.Y + (float)rectTabStrip.Height / 2));
+                g.Transform = matrixRotated;
+            }
 
-			foreach (Pane pane in GetPanes(dockState))
-			{
-				foreach (TabVS2005 tab in pane.AutoHideTabs)
-					DrawTab(g, tab);
-			}
-			g.Transform = matrixIdentity;
-		}
+            foreach (Pane pane in GetPanes(dockState))
+            {
+                foreach (TabVS2005 tab in pane.AutoHideTabs)
+                    DrawTab(g, tab);
+            }
+            g.Transform = matrixIdentity;
+        }
 
-		private void CalculateTabs()
-		{
-			CalculateTabs(DockState.DockTopAutoHide);
-			CalculateTabs(DockState.DockBottomAutoHide);
-			CalculateTabs(DockState.DockLeftAutoHide);
-			CalculateTabs(DockState.DockRightAutoHide);
-		}
+        private void CalculateTabs()
+        {
+            CalculateTabs(DockState.DockTopAutoHide);
+            CalculateTabs(DockState.DockBottomAutoHide);
+            CalculateTabs(DockState.DockLeftAutoHide);
+            CalculateTabs(DockState.DockRightAutoHide);
+        }
 
         private void CalculateTabs(DockState dockState)
         {
@@ -287,19 +287,23 @@ namespace WeifenLuo.WinFormsUI.Docking
             }
             else x = TabGapLeft + rectTabStrip.X;
 
+            String tabStyle = PluginCore.PluginBase.MainForm.GetThemeValue("VS2005AutoHideStrip.TabStyle");
+
             foreach (Pane pane in GetPanes(dockState))
             {
                 foreach (TabVS2005 tab in pane.AutoHideTabs)
                 {
-                    int width = imageWidth + ImageGapLeft + ImageGapRight +
-                        TextRenderer.MeasureText(tab.Content.DockHandler.TabText, Font).Width +
-                        TextGapLeft + TextGapRight;
+                    int width;
+
+                    if (tabStyle == "Underlined") width = TextRenderer.MeasureText(tab.Content.DockHandler.TabText, Font).Width + TextGapLeft + TextGapRight;
+                    else width = imageWidth + ImageGapLeft + ImageGapRight + TextRenderer.MeasureText(tab.Content.DockHandler.TabText, Font).Width + TextGapLeft + TextGapRight;
+                    
                     tab.TabX = x;
                     tab.TabWidth = width;
                     x += width;
                 }
 
-                x += TabGapBetween;
+                x += TabGapBetween ;
             }
         }
 
@@ -326,199 +330,228 @@ namespace WeifenLuo.WinFormsUI.Docking
             return GraphicsPath;
         }
 
-		private void DrawTab(Graphics g, TabVS2005 tab)
-		{
-			Rectangle rectTabOrigin = GetTabRectangle(tab);
-			if (rectTabOrigin.IsEmpty)
-				return;
+        private void DrawTab(Graphics g, TabVS2005 tab)
+        {
+            Rectangle rectTabOrigin = GetTabRectangle(tab);
+            if (rectTabOrigin.IsEmpty)
+                return;
 
-			DockState dockState = tab.Content.DockHandler.DockState;
-			IDockContent content = tab.Content;
+            DockState dockState = tab.Content.DockHandler.DockState;
+            IDockContent content = tab.Content;
 
             GraphicsPath path = GetTabOutline(tab, false, true);
             g.FillPath(BrushTabBackground, path);
-            g.DrawPath(PenTabBorder, path);
+
+            String tabStyle = PluginCore.PluginBase.MainForm.GetThemeValue("VS2005AutoHideStrip.TabStyle");
+            Color tabUlColor = PluginCore.PluginBase.MainForm.GetThemeColor("VS2005AutoHideStrip.TabUnderlineColor");
+
+            if (tabStyle == "Underlined")
+            {
+                Int32 spacing = ScaleHelper.Scale(4);
+                Brush brush = tabUlColor != Color.Empty ? new SolidBrush(tabUlColor) : SystemBrushes.Highlight;
+                if (dockState == DockState.DockRightAutoHide)
+                {
+                    g.FillRectangle(brush, new Rectangle(rectTabOrigin.Left + spacing, rectTabOrigin.Y, rectTabOrigin.Width - (spacing * 2), spacing));
+                    rectTabOrigin.Y += spacing;
+                }
+                else if (dockState == DockState.DockTopAutoHide)
+                {
+                    g.FillRectangle(brush, new Rectangle(rectTabOrigin.X + spacing, rectTabOrigin.Bottom - (spacing / 3), rectTabOrigin.Width - (spacing * 2), rectTabOrigin.Bottom));
+                    rectTabOrigin.Y -= (spacing / 3);
+                }
+                else
+                {
+                    g.FillRectangle(brush, new Rectangle(rectTabOrigin.X + spacing, rectTabOrigin.Bottom - spacing, rectTabOrigin.Width - (spacing * 2), rectTabOrigin.Bottom));
+                    rectTabOrigin.Y -= spacing;
+                }
+            }
+            else g.DrawPath(PenTabBorder, path);
 
             // Set no rotate for drawing icon and text
-			Matrix matrixRotate = g.Transform;
-			g.Transform = MatrixIdentity;
+            Matrix matrixRotate = g.Transform;
+            g.Transform = MatrixIdentity;
 
-			// Draw the icon
-			Rectangle rectImage = rectTabOrigin;
+            // Draw the icon
+            Rectangle rectImage = rectTabOrigin;
 
             // HACK - This makes the Silk icon set look better (although it is NOT VS 2005 behavior)
             if (dockState == DockState.DockLeftAutoHide || dockState == DockState.DockRightAutoHide)
                 rectImage.Y -= 1;
 
-			rectImage.X += ImageGapLeft;
-			rectImage.Y += ImageGapTop;
-			int imageHeight = rectTabOrigin.Height - ImageGapTop - ImageGapBottom;
-			int imageWidth = ImageWidth;
-			if (imageHeight > ImageHeight)
-				imageWidth = ImageWidth * (imageHeight/ImageHeight);
-			rectImage.Height = imageHeight;
-			rectImage.Width = imageWidth;
-			rectImage = GetTransformedRectangle(dockState, rectImage);
-			g.DrawIcon(((Form)content).Icon, RtlTransform(rectImage, dockState));
+            rectImage.X += ImageGapLeft;
+            rectImage.Y += ImageGapTop;
+            int imageHeight = rectTabOrigin.Height - ImageGapTop - ImageGapBottom;
+            int imageWidth = ImageWidth;
+            if (imageHeight > ImageHeight)
+                imageWidth = ImageWidth * (imageHeight/ImageHeight);
+            rectImage.Height = imageHeight;
+            rectImage.Width = imageWidth;
+            rectImage = GetTransformedRectangle(dockState, rectImage);
 
-			// Draw the text
-			Rectangle rectText = rectTabOrigin;
+            if (tabStyle != "Underlined") g.DrawIcon(((Form)content).Icon, RtlTransform(rectImage, dockState));
+
+            // Draw the text
+            Rectangle rectText = rectTabOrigin;
 
             // CHANGED - Mika
             if (Font.SizeInPoints > 8F) rectText.Y += 1;
 
-			rectText.X += ImageGapLeft + imageWidth + ImageGapRight + TextGapLeft;
-			rectText.Width -= ImageGapLeft + imageWidth + ImageGapRight + TextGapLeft;
-			rectText = RtlTransform(GetTransformedRectangle(dockState, rectText), dockState);
-			if (dockState == DockState.DockLeftAutoHide || dockState == DockState.DockRightAutoHide)
-				g.DrawString(content.DockHandler.TabText, Font, BrushTabText, rectText, StringFormatTabVertical);
-			else
-				g.DrawString(content.DockHandler.TabText, Font, BrushTabText, rectText, StringFormatTabHorizontal);
+            if (tabStyle == "Underlined") rectText.X += TextGapRight;
+            else
+            {
+                rectText.X += ImageGapLeft + imageWidth + ImageGapRight + TextGapLeft;
+                rectText.Width -= ImageGapLeft + imageWidth + ImageGapRight + TextGapLeft;
+            }
 
-			// Set rotate back
-			g.Transform = matrixRotate;
-		}
+            rectText = RtlTransform(GetTransformedRectangle(dockState, rectText), dockState);
+            if (dockState == DockState.DockLeftAutoHide || dockState == DockState.DockRightAutoHide)
+                g.DrawString(content.DockHandler.TabText, Font, BrushTabText, rectText, StringFormatTabVertical);
+            else
+                g.DrawString(content.DockHandler.TabText, Font, BrushTabText, rectText, StringFormatTabHorizontal);
 
-		private Rectangle GetLogicalTabStripRectangle(DockState dockState)
-		{
-			return GetLogicalTabStripRectangle(dockState, false);
-		}
+            // Set rotate back
+            g.Transform = matrixRotate;
+        }
 
-		private Rectangle GetLogicalTabStripRectangle(DockState dockState, bool transformed)
-		{
-			if (!DockHelper.IsDockStateAutoHide(dockState))
-				return Rectangle.Empty;
+        private Rectangle GetLogicalTabStripRectangle(DockState dockState)
+        {
+            return GetLogicalTabStripRectangle(dockState, false);
+        }
 
-			int leftPanes = GetPanes(DockState.DockLeftAutoHide).Count;
-			int rightPanes = GetPanes(DockState.DockRightAutoHide).Count;
-			int topPanes = GetPanes(DockState.DockTopAutoHide).Count;
-			int bottomPanes = GetPanes(DockState.DockBottomAutoHide).Count;
+        private Rectangle GetLogicalTabStripRectangle(DockState dockState, bool transformed)
+        {
+            if (!DockHelper.IsDockStateAutoHide(dockState))
+                return Rectangle.Empty;
 
-			int x, y, width, height;
+            int leftPanes = GetPanes(DockState.DockLeftAutoHide).Count;
+            int rightPanes = GetPanes(DockState.DockRightAutoHide).Count;
+            int topPanes = GetPanes(DockState.DockTopAutoHide).Count;
+            int bottomPanes = GetPanes(DockState.DockBottomAutoHide).Count;
 
-			height = MeasureHeight();
-			if (dockState == DockState.DockLeftAutoHide && leftPanes > 0)
-			{
-				x = 0;
-				y = (topPanes == 0) ? 0 : height;
-				width = Height - (topPanes == 0 ? 0 : height) - (bottomPanes == 0 ? 0 :height);
-			}
-			else if (dockState == DockState.DockRightAutoHide && rightPanes > 0)
-			{
-				x = Width - height;
-				if (leftPanes != 0 && x < height)
-					x = height;
-				y = (topPanes == 0) ? 0 : height;
-				width = Height - (topPanes == 0 ? 0 : height) - (bottomPanes == 0 ? 0 :height);
-			}
-			else if (dockState == DockState.DockTopAutoHide && topPanes > 0)
-			{
-				x = leftPanes == 0 ? 0 : height;
-				y = 0;
-				width = Width - (leftPanes == 0 ? 0 : height) - (rightPanes == 0 ? 0 : height);
-			}
-			else if (dockState == DockState.DockBottomAutoHide && bottomPanes > 0)
-			{
-				x = leftPanes == 0 ? 0 : height;
-				y = Height - height;
-				if (topPanes != 0 && y < height)
-					y = height;
-				width = Width - (leftPanes == 0 ? 0 : height) - (rightPanes == 0 ? 0 : height);
-			}
-			else
-				return Rectangle.Empty;
+            int x, y, width, height;
 
-			if (!transformed)
-				return new Rectangle(x, y, width, height);
-			else
-				return GetTransformedRectangle(dockState, new Rectangle(x, y, width, height));
-		}
+            height = MeasureHeight();
+            if (dockState == DockState.DockLeftAutoHide && leftPanes > 0)
+            {
+                x = 0;
+                y = (topPanes == 0) ? 0 : height;
+                width = Height - (topPanes == 0 ? 0 : height) - (bottomPanes == 0 ? 0 :height);
+            }
+            else if (dockState == DockState.DockRightAutoHide && rightPanes > 0)
+            {
+                x = Width - height;
+                if (leftPanes != 0 && x < height)
+                    x = height;
+                y = (topPanes == 0) ? 0 : height;
+                width = Height - (topPanes == 0 ? 0 : height) - (bottomPanes == 0 ? 0 :height);
+            }
+            else if (dockState == DockState.DockTopAutoHide && topPanes > 0)
+            {
+                x = leftPanes == 0 ? 0 : height;
+                y = 0;
+                width = Width - (leftPanes == 0 ? 0 : height) - (rightPanes == 0 ? 0 : height);
+            }
+            else if (dockState == DockState.DockBottomAutoHide && bottomPanes > 0)
+            {
+                x = leftPanes == 0 ? 0 : height;
+                y = Height - height;
+                if (topPanes != 0 && y < height)
+                    y = height;
+                width = Width - (leftPanes == 0 ? 0 : height) - (rightPanes == 0 ? 0 : height);
+            }
+            else
+                return Rectangle.Empty;
 
-		private Rectangle GetTabRectangle(TabVS2005 tab)
-		{
-			return GetTabRectangle(tab, false);
-		}
+            if (!transformed)
+                return new Rectangle(x, y, width, height);
+            else
+                return GetTransformedRectangle(dockState, new Rectangle(x, y, width, height));
+        }
 
-		private Rectangle GetTabRectangle(TabVS2005 tab, bool transformed)
-		{
-			DockState dockState = tab.Content.DockHandler.DockState;
-			Rectangle rectTabStrip = GetLogicalTabStripRectangle(dockState);
+        private Rectangle GetTabRectangle(TabVS2005 tab)
+        {
+            return GetTabRectangle(tab, false);
+        }
 
-			if (rectTabStrip.IsEmpty)
-				return Rectangle.Empty;
+        private Rectangle GetTabRectangle(TabVS2005 tab, bool transformed)
+        {
+            DockState dockState = tab.Content.DockHandler.DockState;
+            Rectangle rectTabStrip = GetLogicalTabStripRectangle(dockState);
 
-			int x = tab.TabX;
-			int y = rectTabStrip.Y + 
-				(dockState == DockState.DockTopAutoHide || dockState == DockState.DockRightAutoHide ?
-				0 : TabGapTop);
-			int width = tab.TabWidth;
-			int height = rectTabStrip.Height - TabGapTop;
+            if (rectTabStrip.IsEmpty)
+                return Rectangle.Empty;
 
-			if (!transformed)
-				return new Rectangle(x, y, width, height);
-			else
-				return GetTransformedRectangle(dockState, new Rectangle(x, y, width, height));
-		}
+            int x = tab.TabX;
+            int y = rectTabStrip.Y + 
+                (dockState == DockState.DockTopAutoHide || dockState == DockState.DockRightAutoHide ?
+                0 : TabGapTop);
+            int width = tab.TabWidth;
+            int height = rectTabStrip.Height - TabGapTop;
 
-		private Rectangle GetTransformedRectangle(DockState dockState, Rectangle rect)
-		{
-			if (dockState != DockState.DockLeftAutoHide && dockState != DockState.DockRightAutoHide)
-				return rect;
+            if (!transformed)
+                return new Rectangle(x, y, width, height);
+            else
+                return GetTransformedRectangle(dockState, new Rectangle(x, y, width, height));
+        }
 
-			PointF[] pts = new PointF[1];
-			// the center of the rectangle
-			pts[0].X = (float)rect.X + (float)rect.Width / 2;
-			pts[0].Y = (float)rect.Y + (float)rect.Height / 2;
-			Rectangle rectTabStrip = GetLogicalTabStripRectangle(dockState);
-			Matrix matrix = new Matrix();
-			matrix.RotateAt(90, new PointF((float)rectTabStrip.X + (float)rectTabStrip.Height / 2,
-				(float)rectTabStrip.Y + (float)rectTabStrip.Height / 2));
-			matrix.TransformPoints(pts);
+        private Rectangle GetTransformedRectangle(DockState dockState, Rectangle rect)
+        {
+            if (dockState != DockState.DockLeftAutoHide && dockState != DockState.DockRightAutoHide)
+                return rect;
 
-			return new Rectangle((int)(pts[0].X - (float)rect.Height / 2 + .5F),
-				(int)(pts[0].Y - (float)rect.Width / 2 + .5F),
-				rect.Height, rect.Width);
-		}
+            PointF[] pts = new PointF[1];
+            // the center of the rectangle
+            pts[0].X = (float)rect.X + (float)rect.Width / 2;
+            pts[0].Y = (float)rect.Y + (float)rect.Height / 2;
+            Rectangle rectTabStrip = GetLogicalTabStripRectangle(dockState);
+            Matrix matrix = new Matrix();
+            matrix.RotateAt(90, new PointF((float)rectTabStrip.X + (float)rectTabStrip.Height / 2,
+                (float)rectTabStrip.Y + (float)rectTabStrip.Height / 2));
+            matrix.TransformPoints(pts);
 
-		protected override IDockContent HitTest(Point ptMouse)
-		{
-			foreach(DockState state in DockStates)
-			{
-				Rectangle rectTabStrip = GetLogicalTabStripRectangle(state, true);
-				if (!rectTabStrip.Contains(ptMouse))
-					continue;
+            return new Rectangle((int)(pts[0].X - (float)rect.Height / 2 + .5F),
+                (int)(pts[0].Y - (float)rect.Width / 2 + .5F),
+                rect.Height, rect.Width);
+        }
 
-				foreach(Pane pane in GetPanes(state))
-				{
-                    DockState dockState = pane.DockPane.DockState;
-					foreach(TabVS2005 tab in pane.AutoHideTabs)
-					{
+        protected override IDockContent HitTest(Point ptMouse)
+        {
+            foreach(DockState state in DockStates)
+            {
+                Rectangle rectTabStrip = GetLogicalTabStripRectangle(state, true);
+                if (!rectTabStrip.Contains(ptMouse))
+                    continue;
+
+                foreach(Pane pane in GetPanes(state))
+                {
+                    foreach(TabVS2005 tab in pane.AutoHideTabs)
+                    {
                         GraphicsPath path = GetTabOutline(tab, true, true);
                         if (path.IsVisible(ptMouse))
-							return tab.Content;
-					}
-				}
-			}
-			
-			return null;
-		}
+                            return tab.Content;
+                    }
+                }
+            }
+            
+            return null;
+        }
 
-		protected internal override int MeasureHeight()
-		{
-			return Math.Max(ImageGapBottom +
-				ImageGapTop + ImageHeight,
-				Font.Height) + TabGapTop;
-		}
+        protected internal override int MeasureHeight()
+        {
+            return Math.Max(ImageGapBottom +
+                ImageGapTop + ImageHeight,
+                Font.Height) + TabGapTop;
+        }
 
-		protected override void OnRefreshChanges()
-		{
-			CalculateTabs();
-			Invalidate();
-		}
+        protected override void OnRefreshChanges()
+        {
+            CalculateTabs();
+            Invalidate();
+        }
 
         protected override AutoHideStripBase.Tab CreateTab(IDockContent content)
         {
             return new TabVS2005(content);
         }
-	}
+    }
 }

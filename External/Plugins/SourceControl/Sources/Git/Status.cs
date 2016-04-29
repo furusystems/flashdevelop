@@ -1,9 +1,8 @@
 ﻿using System;
-using System.IO;
-using System.Text;
 using System.Collections.Generic;
+using System.IO;
+using PluginCore;
 using PluginCore.Localization;
-using PluginCore.Utilities;
 using PluginCore.Managers;
 
 namespace SourceControl.Sources.Git
@@ -13,7 +12,6 @@ namespace SourceControl.Sources.Git
         public event StatusResult OnResult;
 
         public string RootPath;
-        public string Branch;
 
         StatusNode root = new StatusNode(".", VCItemStatus.Undefined);
         StatusNode temp;
@@ -34,7 +32,7 @@ namespace SourceControl.Sources.Git
             {
                 foreach (IgnoreEntry ignore in ignores)
                 {
-                    if ((ignore.path == "" || path.StartsWith(ignore.path)) && ignore.regex.IsMatch(path))
+                    if ((ignore.path == "" || path.StartsWithOrdinal(ignore.path)) && ignore.regex.IsMatch(path))
                     {
                         found = root.MapPath(path.Substring(ignore.path.Length), VCItemStatus.Ignored);
                         return found;
@@ -51,7 +49,7 @@ namespace SourceControl.Sources.Git
 
             temp = new StatusNode(".", VCItemStatus.Undefined);
             updatingPath = RootPath;
-            if (dirty != null) dirty = null;
+            dirty = null;
             ignores.Update();
 
             Run("status -s -b --porcelain", updatingPath);
@@ -60,7 +58,11 @@ namespace SourceControl.Sources.Git
         public bool SetPathDirty(string path)
         {
             if (path == null) return false;
-            if (dirty == null || dirty == "") { dirty = path; return true; }
+            if (string.IsNullOrEmpty(dirty))
+            {
+                dirty = path;
+                return true;
+            }
 
             char sep = Path.DirectorySeparatorChar;
             string[] p1 = dirty.Split(sep);
@@ -77,7 +79,7 @@ namespace SourceControl.Sources.Git
             return true;
         }
 
-        override protected void runner_ProcessEnded(object sender, int exitCode)
+        override protected void Runner_ProcessEnded(object sender, int exitCode)
         {
             runner = null;
             if (exitCode != 0)
@@ -90,10 +92,10 @@ namespace SourceControl.Sources.Git
             if (OnResult != null) OnResult(this);
         }
 
-        override protected void runner_Output(object sender, string line)
+        override protected void Runner_Output(object sender, string line)
         {
             int fileIndex = 3;
-            if (line.Length < fileIndex || line.Length < 3) return;
+            if (line.Length < fileIndex) return;
 
             char c0 = line[0];
             char c1 = line[1];
@@ -108,13 +110,9 @@ namespace SourceControl.Sources.Git
             else if (c0 == 'R') s = VCItemStatus.Added; // renamed
             else if (c0 == 'M' || c1 == 'M') s = VCItemStatus.Modified;
             else if (c0 == 'D' || c1 == 'D') s = VCItemStatus.Deleted;
-            else if (c0 == '#')
-            {
-                Branch = line.Substring(fileIndex);
-                return;
-            }
+            else if (c0 == '#') return;
 
-            int p = line.IndexOf(" -> ");
+            int p = line.IndexOfOrdinal(" -> ");
             if (p > 0) line = line.Substring(p + 4);
             else line = line.Substring(fileIndex);
             temp.MapPath(line, s);

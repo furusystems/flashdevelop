@@ -1,9 +1,7 @@
 using System;
-using System.Text;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Collections.Generic;
-using FlashDevelop.Managers;
 using PluginCore.FRService;
 using ScintillaNet;
 
@@ -16,10 +14,10 @@ namespace FlashDevelop.Utilities
         /// </summary>
         public static Image GetImage(Int32 img)
         {
-            System.Drawing.Image image;
-            if (img == 1) image = Globals.MainForm.FindImage("196");
-            else if (img == 2) image = Globals.MainForm.FindImage("197");
-            else image = Globals.MainForm.FindImage("229");
+            Image image;
+            if (img == 1) image = Globals.MainForm.FindImage("196", false);
+            else if (img == 2) image = Globals.MainForm.FindImage("197", false);
+            else image = Globals.MainForm.FindImage("229", false);
             return image;
         }
 
@@ -57,6 +55,19 @@ namespace FlashDevelop.Utilities
             Int32 line = sci.LineFromPosition(start);
             sci.EnsureVisible(line);
             sci.SetSel(start, end);
+        }
+
+        /// <summary>
+        /// Selects a search match in target
+        /// </summary>
+        public static void SelectMatchInTarget(ScintillaControl sci, SearchMatch match)
+        {
+            Int32 start = sci.MBSafePosition(match.Index); // wchar to byte position
+            Int32 end = start + sci.MBSafeTextLength(match.Value); // wchar to byte text length
+            Int32 line = sci.LineFromPosition(start);
+            sci.EnsureVisible(line);
+            sci.TargetStart = start;
+            sci.TargetEnd = end;
         }
 
         /// <summary>

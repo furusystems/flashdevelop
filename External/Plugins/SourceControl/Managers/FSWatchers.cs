@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using SourceControl.Sources;
+using System.IO;
+using System.Timers;
 using System.Windows.Forms;
 using PluginCore;
-using System.IO;
-using SourceControl.Actions;
 using ProjectManager.Projects;
+using SourceControl.Actions;
+using SourceControl.Sources;
+using Timer = System.Timers.Timer;
 
 namespace SourceControl.Managers
 {
@@ -14,16 +15,16 @@ namespace SourceControl.Managers
     {
         Dictionary<FileSystemWatcher, IVCManager> watchers = new Dictionary<FileSystemWatcher, IVCManager>();
         List<IVCManager> dirtyVC = new List<IVCManager>();
-        System.Timers.Timer updateTimer;
+        Timer updateTimer;
         string lastDirtyPath;
         bool disposing;
 
         public FSWatchers()
         {
-            updateTimer = new System.Timers.Timer();
-            updateTimer.SynchronizingObject = PluginCore.PluginBase.MainForm as Form;
+            updateTimer = new Timer();
+            updateTimer.SynchronizingObject = PluginBase.MainForm as Form;
             updateTimer.Interval = 4000;
-            updateTimer.Elapsed += updateTimer_Tick;
+            updateTimer.Elapsed += UpdateTimer_Tick;
             updateTimer.Start();
         }
 
@@ -64,7 +65,7 @@ namespace SourceControl.Managers
         internal WatcherVCResult ResolveVC(string path)
         {
             foreach (FileSystemWatcher watcher in watchers.Keys)
-                if (path.StartsWith(watcher.Path))
+                if (path.StartsWithOrdinal(watcher.Path))
                     return new WatcherVCResult(watcher, watchers[watcher]);
             return null;
         }
@@ -113,14 +114,11 @@ namespace SourceControl.Managers
                     return;
                 }
 
-            if (rootDir)
-            {
-                if (ParentDirUnderVC(path)) return;
-            }
+            if (rootDir && ParentDirUnderVC(path))
+                return;
 
-            string[] dirs = Directory.GetDirectories(path);
             if (depth < 3)
-                foreach (string dir in dirs)
+                foreach (string dir in Directory.GetDirectories(path))
                 {
                     FileInfo info = new FileInfo(dir);
                     if ((info.Attributes & FileAttributes.Hidden) == 0)
@@ -133,8 +131,8 @@ namespace SourceControl.Managers
             var watcher = new FileSystemWatcher(path);
             watcher.IncludeSubdirectories = true;
             watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.Attributes;
-            watcher.Changed += new FileSystemEventHandler(watcher_Changed);
-            watcher.Deleted += new FileSystemEventHandler(watcher_Changed);
+            watcher.Changed += new FileSystemEventHandler(Watcher_Changed);
+            watcher.Deleted += new FileSystemEventHandler(Watcher_Changed);
             watcher.EnableRaisingEvents = true;
             watchers.Add(watcher, manager);
 
@@ -167,9 +165,9 @@ namespace SourceControl.Managers
             return false;
         }
 
-        private void watcher_Changed(object sender, FileSystemEventArgs e)
+        private void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            if (lastDirtyPath != null && e.FullPath.StartsWith(lastDirtyPath))
+            if (lastDirtyPath != null && e.FullPath.StartsWithOrdinal(lastDirtyPath))
                 return;
             lastDirtyPath = e.FullPath;
             
@@ -193,7 +191,7 @@ namespace SourceControl.Managers
             updateTimer.Start();
         }
 
-        void updateTimer_Tick(object sender, System.Timers.ElapsedEventArgs e)
+        void UpdateTimer_Tick(object sender, ElapsedEventArgs e)
         {
             updateTimer.Stop();
             updateTimer.Interval = 4000;

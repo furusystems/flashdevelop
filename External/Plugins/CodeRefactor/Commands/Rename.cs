@@ -1,15 +1,19 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
-using CodeRefactor.Provider;
-using PluginCore.FRService;
+using System.IO;
+using System.Windows.Forms;
 using ASCompletion.Completion;
 using ASCompletion.Context;
 using ASCompletion.Model;
+using CodeRefactor.Provider;
 using PluginCore;
+using PluginCore.Controls;
+using PluginCore.FRService;
 using PluginCore.Helpers;
 using PluginCore.Localization;
 using PluginCore.Managers;
+using ProjectManager.Helpers;
+using ProjectManager.Projects;
 
 namespace CodeRefactor.Commands
 {
@@ -18,18 +22,14 @@ namespace CodeRefactor.Commands
     /// </summary>
     public class Rename : RefactorCommand<IDictionary<String, List<SearchMatch>>>
     {
-        private String newName;
         private Boolean outputResults;
         private FindAllReferences findAllReferencesCommand;
         private Move renamePackage;
-
         private String oldFileName;
         private String newFileName;
 
-        public String NewName
-        {
-            get { return this.newName; }
-        }
+        public string TargetName { get; private set; }
+        public string NewName { get; private set; }
 
         /// <summary>
         /// A new Rename refactoring command.
@@ -97,27 +97,21 @@ namespace CodeRefactor.Commands
                         string path = Path.Combine(aPath.Path, package);
                         if (aPath.IsValid && Directory.Exists(path))
                         {
-                            this.newName = string.IsNullOrEmpty(newName) ? GetNewName(Path.GetFileName(path)) : newName;
-                            if (string.IsNullOrEmpty(this.newName)) return;
-                            renamePackage = new Move(new Dictionary<string, string> { { path, this.newName } }, true, true);
+                            TargetName = Path.GetFileName(path);
+                            this.NewName = string.IsNullOrEmpty(newName) ? GetNewName(TargetName) : newName;
+                            if (string.IsNullOrEmpty(this.NewName)) return;
+                            renamePackage = new Move(new Dictionary<string, string> { { path, this.NewName } }, true, true);
                             return;
                         }
                     }
                 }
                 return;
             }
-            Boolean isEnum = target.Type.IsEnum();
-            Boolean isVoid = target.Type.IsVoid();
-            Boolean isClass = !isVoid && target.IsStatic && (target.Member == null || RefactoringHelper.CheckFlag(target.Member.Flags, FlagType.Constructor));
 
-            if (!string.IsNullOrEmpty(newName))
-                this.newName = newName;
-            else if (isEnum || isClass)
-                this.newName = GetNewName(target.Type.Name);
-            else
-                this.newName = GetNewName(target.Member.Name);
+            TargetName = RefactoringHelper.GetRefactorTargetName(target);
+            this.NewName = !string.IsNullOrEmpty(newName) ? newName : GetNewName(TargetName);
 
-            if (string.IsNullOrEmpty(this.newName)) return;
+            if (string.IsNullOrEmpty(this.NewName)) return;
 
             // create a FindAllReferences refactor to get all the changes we need to make
             // we'll also let it output the results, at least until we implement a way of outputting the renamed results later
@@ -136,6 +130,7 @@ namespace CodeRefactor.Commands
             if (renamePackage != null)
             {
                 renamePackage.RegisterDocumentHelper(AssociatedDocumentHelper);
+                renamePackage.OnRefactorComplete += OnRenamePackageComplete;
                 renamePackage.Execute();
             }
             else
@@ -162,12 +157,18 @@ namespace CodeRefactor.Commands
         /// </summary>
         public override Boolean IsValid()
         {
-            return renamePackage != null ? renamePackage.IsValid() : !string.IsNullOrEmpty(this.newName);
+            return renamePackage != null ? renamePackage.IsValid() : !string.IsNullOrEmpty(this.NewName);
         }
 
         #endregion
 
         #region Private Helper Methods
+
+        void OnRenamePackageComplete(object sender, RefactorCompleteEventArgs<IDictionary<string, List<SearchMatch>>> args)
+        {
+            Results = args.Results;
+            FireOnRefactorComplete();
+        }
 
         private bool ValidateTargets()
         {
@@ -194,19 +195,8 @@ namespace CodeRefactor.Commands
             if (!isEnum && !isClass && !isGlobalFunction && !isGlobalNamespace)
                 return true;
 
-            FileModel inFile;
-            String originName;
-
-            if (isEnum || isClass)
-            {
-                inFile = target.Type.InFile;
-                originName = target.Type.Name;
-            }
-            else
-            {
-                inFile = target.Member.InFile;
-                originName = target.Member.Name;
-            }
+            var member = isEnum || isClass ? target.Type : target.Member;
+            FileModel inFile = member.InFile;
 
             // Is this possible? should return false? I'm inclined to think so
             if (inFile == null) return true;
@@ -215,7 +205,7 @@ namespace CodeRefactor.Commands
             String oldName = Path.GetFileNameWithoutExtension(oldFileName);
 
             // Private classes and similars
-            if (string.IsNullOrEmpty(oldName) || !oldName.Equals(originName))
+            if (string.IsNullOrEmpty(oldName) || !oldName.Equals(member.Name))
                 return true;
 
             String fullPath = Path.GetFullPath(inFile.FileName);
@@ -237,24 +227,25 @@ namespace CodeRefactor.Commands
         {
             UserInterfaceManager.ProgressDialog.Show();
             UserInterfaceManager.ProgressDialog.SetTitle(TextHelper.GetString("Info.UpdatingReferences"));
-            PluginCore.Controls.MessageBar.Locked = true;
+            MessageBar.Locked = true;
             foreach (KeyValuePair<String, List<SearchMatch>> entry in eventArgs.Results)
             {
                 UserInterfaceManager.ProgressDialog.UpdateStatusMessage(TextHelper.GetString("Info.Updating") + " \"" + entry.Key + "\"");
                 // re-open the document and replace all the text
-                var sci = AssociatedDocumentHelper.LoadDocument(entry.Key);
+                var doc = AssociatedDocumentHelper.LoadDocument(entry.Key);
+                var sci = doc.SciControl;
                 // replace matches in the current file with the new name
-                RefactoringHelper.ReplaceMatches(entry.Value, sci, this.newName);
+                RefactoringHelper.ReplaceMatches(entry.Value, sci, this.NewName);
                 //Uncomment if we want to keep modified files
                 //if (sci.IsModify) AssociatedDocumentHelper.MarkDocumentToKeep(entry.Key);
-                PluginBase.MainForm.CurrentDocument.Save();
+                doc.Save();
             }
             if (newFileName != null) RenameFile(eventArgs.Results);
             this.Results = eventArgs.Results;
             AssociatedDocumentHelper.CloseTemporarilyOpenedDocuments();
             if (this.outputResults) this.ReportResults();
             UserInterfaceManager.ProgressDialog.Hide();
-            PluginCore.Controls.MessageBar.Locked = false;
+            MessageBar.Locked = false;
             this.FireOnRefactorComplete();
         }
 
@@ -283,7 +274,7 @@ namespace CodeRefactor.Commands
             }
             else
             {
-                var project = (ProjectManager.Projects.Project)PluginBase.CurrentProject;
+                var project = (Project)PluginBase.CurrentProject;
                 FileHelper.ForceMove(oldFileName, newFileName);
                 DocumentManager.MoveDocuments(oldFileName, newFileName);
                 if (project.IsDocumentClass(oldFileName))
@@ -291,7 +282,6 @@ namespace CodeRefactor.Commands
                     project.SetDocumentClass(newFileName, true);
                     project.Save();
                 }
-
             }
 
             if (results.ContainsKey(oldFileName))
@@ -304,7 +294,7 @@ namespace CodeRefactor.Commands
         }
 
         /// <summary>
-        /// 
+        /// Outputs the results to the TraceManager
         /// </summary>
         private void ReportResults()
         {
@@ -341,7 +331,7 @@ namespace CodeRefactor.Commands
                         reportableLines[lineNumber] = new List<string>();
                     }
                     // the data we store matches the TraceManager.Add's formatting.  We insert the {0} at the end so that we can insert the final line state later
-                    reportableLines[lineNumber].Add(entry.Key + ":" + match.Line.ToString() + ": chars " + column + "-" + (column + newNameLength) + " : {0}");
+                    reportableLines[lineNumber].Add(entry.Key + ":" + match.Line + ": chars " + column + "-" + (column + newNameLength) + " : {0}");
                 }
                 // report all the lines
                 foreach (KeyValuePair<int, List<String>> lineSetsToReport in reportableLines)
@@ -365,12 +355,11 @@ namespace CodeRefactor.Commands
         {
             String label = TextHelper.GetString("Label.NewName");
             String title = String.Format(TextHelper.GetString("Title.RenameDialog"), originalName);
-            String suggestion = originalName;
-            ProjectManager.Helpers.LineEntryDialog askName = new ProjectManager.Helpers.LineEntryDialog(title, label, suggestion);
-            System.Windows.Forms.DialogResult choice = askName.ShowDialog();
-            if (choice == System.Windows.Forms.DialogResult.OK && askName.Line.Trim().Length > 0 && askName.Line.Trim() != originalName)
+            LineEntryDialog askName = new LineEntryDialog(title, label, originalName);
+            if (askName.ShowDialog() == DialogResult.OK)
             {
-                return askName.Line.Trim();
+                string newName = askName.Line.Trim();
+                if(newName.Length > 0 && newName != originalName) return newName;
             }
             return null;
         }

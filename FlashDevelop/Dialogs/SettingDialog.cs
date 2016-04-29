@@ -1,5 +1,4 @@
 using System;
-using System.Data;
 using System.Text;
 using System.Drawing;
 using System.Reflection;
@@ -12,8 +11,8 @@ using FlashDevelop.Dialogs;
 using FlashDevelop.Helpers;
 using PluginCore.Managers;
 using PluginCore.Controls;
-using PluginCore;
 using PluginCore.Helpers;
+using PluginCore;
 
 namespace FlashDevelop.Dialogs
 {
@@ -260,13 +259,15 @@ namespace FlashDevelop.Dialogs
         {
             ImageList imageList = new ImageList();
             imageList.ColorDepth = ColorDepth.Depth32Bit;
-            imageList.Images.Add(Globals.MainForm.FindImage("341"));
-            imageList.Images.Add(Globals.MainForm.FindImage("342"));
-            imageList.Images.Add(Globals.MainForm.FindImage("50"));
-            this.clearFilterButton.Image = Globals.MainForm.FindImage("153");
-            this.infoPictureBox.Image = Globals.MainForm.FindImage("229");
+            imageList.Images.Add(Globals.MainForm.FindImage("341", false));
+            imageList.Images.Add(Globals.MainForm.FindImage("342", false));
+            imageList.Images.Add(Globals.MainForm.FindImage("50", false));
+            imageList.Images.Add(Globals.MainForm.FindImage("153", false)); // clear
+            this.infoPictureBox.Image = Globals.MainForm.FindImage("229", false);
             this.itemListView.SmallImageList = imageList;
             this.itemListView.SmallImageList.ImageSize = ScaleHelper.Scale(new Size(16, 16));
+            this.clearFilterButton.ImageList = imageList;
+            this.clearFilterButton.ImageIndex = 3;
         }
 
         /// <summary>
@@ -298,21 +299,21 @@ namespace FlashDevelop.Dialogs
             this.columnHeader.Width = ScaleHelper.Scale(this.columnHeader.Width);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         private void InitializeContextMenu()
         {
             ContextMenuStrip contextMenu = new ContextMenuStrip();
-
             ToolStripMenuItem collapseAll = new ToolStripMenuItem(TextHelper.GetString("Label.CollapseAll"));
-            collapseAll.ShortcutKeys = MainForm.Instance.GetShortcutItemKeys("ViewMenu.CollapseAll");
-            collapseAll.Click += delegate { itemPropertyGrid.CollapseAllGridItems(); };
+            collapseAll.ShortcutKeys = PluginBase.MainForm.GetShortcutItemKeys("ViewMenu.CollapseAll");
+            collapseAll.Click += delegate { this.itemPropertyGrid.CollapseAllGridItems(); };
             contextMenu.Items.Add(collapseAll);
-
             ToolStripMenuItem expandAll = new ToolStripMenuItem(TextHelper.GetString("Label.ExpandAll"));
-            expandAll.ShortcutKeys = MainForm.Instance.GetShortcutItemKeys("ViewMenu.ExpandAll");
-            expandAll.Click += delegate { itemPropertyGrid.ExpandAllGridItems(); };
+            expandAll.ShortcutKeys = PluginBase.MainForm.GetShortcutItemKeys("ViewMenu.ExpandAll");
+            expandAll.Click += delegate { this.itemPropertyGrid.ExpandAllGridItems(); };
             contextMenu.Items.Add(expandAll);
-
-            itemPropertyGrid.ContextMenuStrip = contextMenu;
+            this.itemPropertyGrid.ContextMenuStrip = contextMenu;
         }
 
         /// <summary>
@@ -322,7 +323,7 @@ namespace FlashDevelop.Dialogs
         {
             this.itemListView.Items.Clear();
             Int32 count = PluginServices.AvailablePlugins.Count;
-            ListViewItem main = new ListViewItem("FlashDevelop", 2);
+            ListViewItem main = new ListViewItem(DistroConfig.DISTRIBUTION_NAME, 2);
             this.itemListView.Items.Add(main);
             this.mainGroup.Items.Add(main);
             for (Int32 i = 0; i < count; i++)
@@ -388,8 +389,8 @@ namespace FlashDevelop.Dialogs
                     this.itemPropertyGrid.Enabled = true;
                     this.itemPropertyGrid.SelectedObject = Globals.Settings;
                     this.descLabel.Text = TextHelper.GetString("Info.AppDescription");
-                    this.helpUrl = "http://www.flashdevelop.org/wikidocs/";
-                    this.nameLabel.Text = "FlashDevelop";
+                    this.helpUrl = DistroConfig.DISTRIBUTION_HELP;
+                    this.nameLabel.Text = DistroConfig.DISTRIBUTION_NAME;
                     this.nameLabel.Enabled = true;
                     this.ShowInfoControls(false);
                     this.FilterPropertySheet();
@@ -426,7 +427,7 @@ namespace FlashDevelop.Dialogs
         /// </summary>
         private void FilterPropertySheet()
         {
-            LocalizedDescriptionAttribute lda = null;
+            if (Win32.IsRunningOnMono()) return;
             Object settingsObj = this.itemPropertyGrid.SelectedObject;
             String text = this.filterText.Text;
             if (settingsObj != null)
@@ -436,18 +437,16 @@ namespace FlashDevelop.Dialogs
                 PropertyInfo[] props = settingsObj.GetType().GetProperties();
                 foreach (PropertyInfo prop in props)
                 {
-                    var atts = prop.GetCustomAttributes(typeof(LocalizedDescriptionAttribute), true);
-                    if (atts.Length > 0) lda = atts[0] as LocalizedDescriptionAttribute;
-                    if (prop.Name.ToLower().ToLower().Contains(text.ToLower()) || lda != null && lda.Description.ToLower().Contains(text.ToLower()))
+                    if (PropertyMatches(prop, text))
                     {
                         Array.Resize(ref browsables, i + 1);
                         browsables.SetValue(prop.Name, i);
                         i++;
                     }
                 }
-                itemPropertyGrid.BrowsableProperties = browsables;
-                itemPropertyGrid.SelectedObject = settingsObj;
-                itemPropertyGrid.Refresh();
+                this.itemPropertyGrid.BrowsableProperties = browsables;
+                this.itemPropertyGrid.SelectedObject = settingsObj;
+                this.itemPropertyGrid.Refresh();
             }
         }
 
@@ -463,10 +462,21 @@ namespace FlashDevelop.Dialogs
                 PropertyInfo[] props = settingsObj.GetType().GetProperties();
                 foreach (PropertyInfo prop in props)
                 {
-                    if (prop.Name.ToLower().Contains(text.ToLower())) ok = true;
+                    if (PropertyMatches(prop, text)) ok = true;
                 }
             }
             return ok;
+        }
+
+        /// <summary>
+        /// Checks if the property matches in any property infos
+        /// </summary>
+        private Boolean PropertyMatches(PropertyInfo prop, String text)
+        {
+            LocalizedDescriptionAttribute lda = null;
+            var atts = prop.GetCustomAttributes(typeof(LocalizedDescriptionAttribute), true);
+            if (atts.Length > 0) lda = atts[0] as LocalizedDescriptionAttribute;
+            return prop.Name.ToLower().Contains(text.ToLower()) || lda != null && lda.Description.ToLower().Contains(text.ToLower());
         }
 
         /// <summary>
@@ -474,7 +484,7 @@ namespace FlashDevelop.Dialogs
         /// </summary>
         public Boolean PartialName(MemberInfo candidate, Object part)
         {
-            if (candidate.Name.IndexOf(part.ToString()) > -1) return true;
+            if (candidate.Name.IndexOfOrdinal(part.ToString()) > -1) return true;
             else return false;
         }
 
@@ -485,7 +495,7 @@ namespace FlashDevelop.Dialogs
         {
             if (this.itemListView.SelectedIndices.Count > 0)
             {
-                GridItem changedItem = (GridItem)e.ChangedItem;
+                GridItem changedItem = e.ChangedItem;
                 String settingId = this.nameLabel.Text + "." + changedItem.Label.Replace(" ", "");
                 TextEvent te = new TextEvent(EventType.SettingChanged, settingId);
                 EventManager.DispatchEvent(Globals.MainForm, te);
@@ -537,15 +547,16 @@ namespace FlashDevelop.Dialogs
         }
 
         /// <summary>
-        /// Restore the selected index - only if a item id hasn't been provided
+        /// Restore the selected index - only if an item id hasn't been provided
         /// </summary>
         private void DialogShown(Object sender, EventArgs e)
         {
-            if (String.IsNullOrEmpty(this.itemFilter) || this.itemFilter == "FlashDevelop")
+            if (String.IsNullOrEmpty(this.itemFilter) || this.itemFilter == DistroConfig.DISTRIBUTION_NAME)
             {
                 this.itemListView.SelectedIndices.Add(lastItemIndex);
                 this.itemListView.EnsureVisible(lastItemIndex);
             }
+            this.filterText.Focus();
         }
 
         /// <summary>

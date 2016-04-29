@@ -1,23 +1,20 @@
 using System;
-using System.IO;
-using System.Drawing;
-using System.Windows.Forms;
 using System.ComponentModel;
-using WeifenLuo.WinFormsUI.Docking;
-using PluginCore.Localization;
-using PluginCore.Utilities;
-using PluginCore.Managers;
-using PluginCore.Helpers;
-using SourceControl.Actions;
-using ProjectManager.Projects;
-using ProjectManager.Actions;
-using ProjectManager;
+using System.IO;
 using PluginCore;
+using PluginCore.Helpers;
+using PluginCore.Localization;
+using PluginCore.Managers;
+using PluginCore.Utilities;
+using ProjectManager;
+using ProjectManager.Actions;
+using ProjectManager.Projects;
+using SourceControl.Actions;
 
 namespace SourceControl
 {
-	public class PluginMain : IPlugin
-	{
+    public class PluginMain : IPlugin
+    {
         private String pluginName = "SourceControl";
         private String pluginGuid = "42ac7fab-421b-1f38-a985-5735468ac489";
         private String pluginHelp = "www.flashdevelop.org/community/";
@@ -25,10 +22,9 @@ namespace SourceControl
         private String pluginAuth = "FlashDevelop Team";
         private static Settings settingObject;
         private String settingFilename;
-        private Image pluginImage;
         private Boolean ready;
 
-	    #region Required Properties
+        #region Required Properties
 
         /// <summary>
         /// Api level of the plugin
@@ -42,41 +38,41 @@ namespace SourceControl
         /// Name of the plugin
         /// </summary> 
         public String Name
-		{
-			get { return this.pluginName; }
-		}
+        {
+            get { return this.pluginName; }
+        }
 
         /// <summary>
         /// GUID of the plugin
         /// </summary>
         public String Guid
-		{
-			get { return this.pluginGuid; }
-		}
+        {
+            get { return this.pluginGuid; }
+        }
 
         /// <summary>
         /// Author of the plugin
         /// </summary> 
         public String Author
-		{
-			get { return this.pluginAuth; }
-		}
+        {
+            get { return this.pluginAuth; }
+        }
 
         /// <summary>
         /// Description of the plugin
         /// </summary> 
         public String Description
-		{
-			get { return this.pluginDesc; }
-		}
+        {
+            get { return this.pluginDesc; }
+        }
 
         /// <summary>
         /// Web address for help
         /// </summary> 
         public String Help
-		{
-			get { return this.pluginHelp; }
-		}
+        {
+            get { return this.pluginHelp; }
+        }
 
         /// <summary>
         /// Object that contains the settings
@@ -86,35 +82,35 @@ namespace SourceControl
         {
             get { return settingObject; }
         }
-		
-		#endregion
-		
-		#region Required Methods
-		
-		/// <summary>
-		/// Initializes the plugin
-		/// </summary>
-		public void Initialize()
-		{
+        
+        #endregion
+        
+        #region Required Methods
+        
+        /// <summary>
+        /// Initializes the plugin
+        /// </summary>
+        public void Initialize()
+        {
             this.InitBasics();
             this.LoadSettings();
             this.AddEventHandlers();
         }
-		
-		/// <summary>
-		/// Disposes the plugin
-		/// </summary>
-		public void Dispose()
-		{
+        
+        /// <summary>
+        /// Disposes the plugin
+        /// </summary>
+        public void Dispose()
+        {
             ProjectWatcher.Dispose();
             this.SaveSettings();
-		}
-		
-		/// <summary>
-		/// Handles the incoming events
-		/// </summary>
-		public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority prority)
-		{
+        }
+        
+        /// <summary>
+        /// Handles the incoming events
+        /// </summary>
+        public void HandleEvent(Object sender, NotifyEvent e, HandlingPriority priority)
+        {
             switch (e.Type)
             {
                 case EventType.UIStarted:
@@ -127,7 +123,7 @@ namespace SourceControl
                     if (!this.ready) return;
                     DataEvent de = e as DataEvent;
                     String cmd = de.Action;
-                    if (!cmd.StartsWith("ProjectManager.")) return;
+                    if (!cmd.StartsWithOrdinal("ProjectManager.")) return;
                     switch (cmd)
                     {
                         case ProjectManagerEvents.Project:
@@ -285,9 +281,9 @@ namespace SourceControl
                     }
                     break;
             }
-		}
-		
-		#endregion
+        }
+        
+        #endregion
 
         #region Custom Methods
         
@@ -308,7 +304,6 @@ namespace SourceControl
             if (!Directory.Exists(dataPath)) Directory.CreateDirectory(dataPath);
             this.settingFilename = Path.Combine(dataPath, "Settings.fdb");
             this.pluginDesc = TextHelper.GetString("Info.Description");
-            this.pluginImage = PluginBase.MainForm.FindImage("100");
         }
 
         /// <summary>
@@ -331,19 +326,54 @@ namespace SourceControl
                 Object obj = ObjectSerializer.Deserialize(this.settingFilename, settingObject);
                 settingObject = (Settings)obj;
             }
+
+            #region Detect Git
+
+            // Try to find git path from program files
+            if (settingObject.GITPath == "git.exe")
+            {
+                String gitPath = PathHelper.FindFromProgramFiles(@"Git\bin\git.exe");
+                if (File.Exists(gitPath)) settingObject.GITPath = gitPath;
+
+            }
+            // Try to find TortoiseProc path from program files
+            if (settingObject.TortoiseGITProcPath == "TortoiseGitProc.exe")
+            {
+                String torProcPath = PathHelper.FindFromProgramFiles(@"TortoiseGit\bin\TortoiseGitProc.exe");
+                if (File.Exists(torProcPath)) settingObject.TortoiseGITProcPath = torProcPath;
+            }
+
+            #endregion
+
+            #region Detect SVN
+
             // Try to find svn path from: Tools/sliksvn/
             if (settingObject.SVNPath == "svn.exe")
             {
                 String svnCmdPath = @"Tools\sliksvn\bin\svn.exe";
                 if (PathHelper.ResolvePath(svnCmdPath) != null) settingObject.SVNPath = svnCmdPath;
             }
+            // Try to find sliksvn path from program files
+            if (settingObject.SVNPath == "svn.exe")
+            {
+                String slSvnPath = PathHelper.FindFromProgramFiles(@"SlikSvn\bin\svn.exe");
+                if (File.Exists(slSvnPath)) settingObject.SVNPath = slSvnPath;
+            }
+            // Try to find svn from TortoiseSVN
+            if (settingObject.SVNPath == "svn.exe")
+            {
+                String torSvnPath = PathHelper.FindFromProgramFiles(@"TortoiseSVN\bin\svn.exe");
+                if (File.Exists(torSvnPath)) settingObject.SVNPath = torSvnPath;
+            }
             // Try to find TortoiseProc path from program files
             if (settingObject.TortoiseSVNProcPath == "TortoiseProc.exe")
             {
-                String programFiles = Environment.GetEnvironmentVariable("ProgramFiles");
-                String torProcPath = Path.Combine(programFiles, @"TortoiseSVN\bin\TortoiseProc.exe");
+                String torProcPath = PathHelper.FindFromProgramFiles(@"TortoiseSVN\bin\TortoiseProc.exe");
                 if (File.Exists(torProcPath)) settingObject.TortoiseSVNProcPath = torProcPath;
             }
+
+            #endregion
+
             CheckPathExists(settingObject.SVNPath, "TortoiseSVN (svn)");
             CheckPathExists(settingObject.TortoiseSVNProcPath, "TortoiseSVN (Proc)");
             CheckPathExists(settingObject.GITPath, "TortoiseGit (git)");
@@ -352,14 +382,16 @@ namespace SourceControl
             CheckPathExists(settingObject.TortoiseHGProcPath, "TortoiseHG (Proc)");
         }
 
-        private void CheckPathExists(string path, string name)
+        /// <summary>
+        /// 
+        /// </summary>
+        private void CheckPathExists(String path, String name)
         {
-            if (string.IsNullOrEmpty(path)) return;
+            if (String.IsNullOrEmpty(path)) return;
             if (!Path.IsPathRooted(path)) return;
             if (!File.Exists(path))
             {
-                string msg = String.Format(TextHelper.GetString("FlashDevelop.Info.InvalidToolPath"), name, "SourceControl") 
-                    + ":\n" + path;
+                String msg = String.Format(TextHelper.GetString("FlashDevelop.Info.InvalidToolPath"), name, "SourceControl") + ":\n" + path;
                 TraceManager.AddAsync(msg, -3);
             }
         }
@@ -372,8 +404,8 @@ namespace SourceControl
             ObjectSerializer.Serialize(this.settingFilename, settingObject);
         }
 
-		#endregion
+        #endregion
 
-	}
-	
+    }
+    
 }

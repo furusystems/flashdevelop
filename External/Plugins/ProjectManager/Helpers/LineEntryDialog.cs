@@ -1,80 +1,78 @@
-using System;
-using System.Drawing;
-using System.Collections;
 using System.ComponentModel;
 using System.Windows.Forms;
+using PluginCore;
 using PluginCore.Localization;
 
 namespace ProjectManager.Helpers
 {
-	/// <summary>
-	/// A simple form where a user can enter a text string.
-	/// </summary>
-	public class LineEntryDialog : System.Windows.Forms.Form
-	{
-		string line;
+    /// <summary>
+    /// A simple form where a user can enter a text string.
+    /// </summary>
+    public class LineEntryDialog : Form
+    {
+        string line;
 
-		#region Form Designer Components
+        #region Form Designer Components
 
-		private System.Windows.Forms.TextBox lineBox;
-		private System.Windows.Forms.Button btnOK;
-		private System.Windows.Forms.Button btnCancel;
-		/// <summary>
-		/// Required designer variable.
-		/// </summary>
-		private System.ComponentModel.Container components = null;
-		private System.Windows.Forms.Label titleLabel;
+        private System.Windows.Forms.TextBox lineBox;
+        private System.Windows.Forms.Button btnOK;
+        private System.Windows.Forms.Button btnCancel;
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.Container components = null;
+        private System.Windows.Forms.Label titleLabel;
 
-		#endregion
+        #endregion
 
-		/// <summary>
-		/// Gets the line entered by the user.
-		/// </summary>
-		public string Line
-		{
-			get { return line; }
-		}
+        /// <summary>
+        /// Gets the line entered by the user.
+        /// </summary>
+        public string Line
+        {
+            get { return line; }
+        }
 
-		public LineEntryDialog(string captionText, string labelText, string defaultLine)
-		{
-			InitializeComponent();
+        public LineEntryDialog(string captionText, string labelText, string defaultLine)
+        {
+            InitializeComponent();
             InititalizeLocalization();
-            this.Font = PluginCore.PluginBase.Settings.DefaultFont;
-
-			this.Text = " " + captionText;
+            this.Font = PluginBase.Settings.DefaultFont;
+            this.Text = " " + captionText;
             titleLabel.Text = labelText;
-			lineBox.Text = (defaultLine != null) ? defaultLine : string.Empty;
-			lineBox.SelectAll();
-			lineBox.Focus();
-		}
+            lineBox.KeyDown += OnLineBoxOnKeyDown;
+            lineBox.Text = (defaultLine != null) ? defaultLine : string.Empty;
+            lineBox.SelectAll();
+            lineBox.Focus();
+        }
 
-		#region Dispose
+        #region Dispose
 
-		/// <summary>
-		/// Clean up any resources being used.
-		/// </summary>
-		protected override void Dispose( bool disposing )
-		{
-			if( disposing )
-			{
-				if(components != null)
-				{
-					components.Dispose();
-				}
-			}
-			base.Dispose( disposing );
-		}
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        protected override void Dispose( bool disposing )
+        {
+            if( disposing )
+            {
+                if(components != null)
+                {
+                    components.Dispose();
+                }
+            }
+            base.Dispose( disposing );
+        }
 
-		#endregion
+        #endregion
 
-		#region Windows Form Designer Generated Code
+        #region Windows Form Designer Generated Code
 
-		/// <summary>
-		/// Required method for Designer support - do not modify
-		/// the contents of this method with the code editor.
-		/// </summary>
-		private void InitializeComponent()
-		{
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
             this.titleLabel = new System.Windows.Forms.Label();
             this.lineBox = new System.Windows.Forms.TextBox();
             this.btnOK = new System.Windows.Forms.Button();
@@ -137,9 +135,9 @@ namespace ProjectManager.Helpers
             this.ResumeLayout(false);
             this.PerformLayout();
 
-		}
+        }
 
-		#endregion
+        #endregion
 
         private void InititalizeLocalization()
         {
@@ -149,23 +147,43 @@ namespace ProjectManager.Helpers
             this.Text = " " + TextHelper.GetString("Title.EnterText");
         }
 
-		private void btnOK_Click(object sender, System.EventArgs e)
-		{
-			this.line = lineBox.Text;
-			CancelEventArgs cancelArgs = new CancelEventArgs(false);
-			OnValidating(cancelArgs);
-			if (!cancelArgs.Cancel)
-			{
-				this.DialogResult = DialogResult.OK;
-				this.Close();
-			}
-		}
+        private void btnOK_Click(object sender, System.EventArgs e)
+        {
+            this.line = lineBox.Text;
+            CancelEventArgs cancelArgs = new CancelEventArgs(false);
+            OnValidating(cancelArgs);
+            if (!cancelArgs.Cancel)
+            {
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+        }
 
-		private void btnCancel_Click(object sender, System.EventArgs e)
-		{
-			this.DialogResult = DialogResult.Cancel;
-			this.Close();
-		}
+        private void btnCancel_Click(object sender, System.EventArgs e)
+        {
+            this.DialogResult = DialogResult.Cancel;
+            this.Close();
+        }
+
+        void OnLineBoxOnKeyDown(object sender, KeyEventArgs args)
+        {
+            string shortcutId = PluginBase.MainForm.GetShortcutItemId(args.KeyData);
+            if (string.IsNullOrEmpty(shortcutId)) return;
+
+            switch (shortcutId)
+            {
+                case "EditMenu.ToLowercase":
+                case "EditMenu.ToUppercase":
+                    string selectedText = lineBox.SelectedText;
+                    if (string.IsNullOrEmpty(selectedText)) break;
+                    selectedText = shortcutId == "EditMenu.ToLowercase" ? selectedText.ToLower() : selectedText.ToUpper();
+                    int selectionStart = lineBox.SelectionStart;
+                    int selectionLength = lineBox.SelectionLength;
+                    lineBox.Paste(selectedText);
+                    SelectRange(selectionStart, selectionLength);
+                    break;
+            }
+        }
 
         public void SelectRange(int start, int length)
         {
